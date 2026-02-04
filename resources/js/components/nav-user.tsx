@@ -18,6 +18,9 @@ import type { SharedData } from '@/types';
 
 export function NavUser() {
     const { auth } = usePage<SharedData>().props;
+    if (!auth.user) {
+        return null;
+    }
     const { state } = useSidebar();
     const isMobile = useIsMobile();
 
