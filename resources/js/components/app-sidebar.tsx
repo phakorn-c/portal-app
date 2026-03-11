@@ -1,5 +1,5 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FileText, Folder, LayoutGrid, Shield } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { BookOpen, FileText, Folder, LayoutGrid, Shield, Bookmark, History, Bell } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -13,26 +13,9 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
+import type { NavItem, SharedData } from '@/types';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'ประกาศจัดซื้อจัดจ้าง',
-        href: '/procurement',
-        icon: FileText,
-    },
-    {
-        title: 'หน้าจัดการ (Admin)',
-        href: '/admin',
-        icon: Shield,
-    },
-];
 
 const footerNavItems: NavItem[] = [
     {
@@ -48,6 +31,26 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const page = usePage<SharedData>();
+    const { auth } = page.props;
+
+    const navItems: NavItem[] = [
+        { title: 'ประกาศจัดซื้อจัดจ้าง', href: '/procurement', icon: FileText },
+    ];
+
+    if (auth?.capabilities?.isAdmin || auth?.capabilities?.isRegistered) {
+        navItems.unshift({ title: 'Dashboard', href: dashboard(), icon: LayoutGrid });
+        navItems.push(
+            { title: 'Saved Searches', href: '/user/saved-searches', icon: Bookmark, 'data-test': 'nav-saved-searches-link' },
+            { title: 'History', href: '/user/history', icon: History, 'data-test': 'nav-history-link' },
+            { title: 'Notifications', href: '/user/notifications', icon: Bell, 'data-test': 'nav-notifications-link' }
+        );
+    }
+
+    if (auth?.capabilities?.isAdmin) {
+        navItems.push({ title: 'หน้าจัดการ (Admin)', href: '/admin', icon: Shield, 'data-test': 'nav-admin-link' });
+    }
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -63,7 +66,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>

@@ -5,6 +5,9 @@ import {
     Menu,
     Search,
     Shield,
+    Bookmark,
+    History,
+    Bell,
 } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,23 +43,6 @@ type Props = {
     breadcrumbs?: BreadcrumbItem[];
 };
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'ประกาศจัดซื้อจัดจ้าง',
-        href: '/procurement',
-        icon: FileText,
-    },
-    {
-        title: 'หน้าจัดการ (Admin)',
-        href: '/admin',
-        icon: Shield,
-    },
-];
 
 
 const activeItemStyles =
@@ -68,9 +54,22 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     const user = auth?.user;
     const getInitials = useInitials();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
-    const navItems = user
-        ? mainNavItems
-        : mainNavItems.filter((item) => item.title === 'ประกาศจัดซื้อจัดจ้าง');
+    const navItems: NavItem[] = [
+        { title: 'ประกาศจัดซื้อจัดจ้าง', href: '/procurement', icon: FileText },
+    ];
+
+    if (auth?.capabilities?.isAdmin || auth?.capabilities?.isRegistered) {
+        navItems.unshift({ title: 'Dashboard', href: dashboard(), icon: LayoutGrid });
+        navItems.push(
+            { title: 'Saved Searches', href: '/user/saved-searches', icon: Bookmark, 'data-test': 'nav-saved-searches-link' },
+            { title: 'History', href: '/user/history', icon: History, 'data-test': 'nav-history-link' },
+            { title: 'Notifications', href: '/user/notifications', icon: Bell, 'data-test': 'nav-notifications-link' }
+        );
+    }
+
+    if (auth?.capabilities?.isAdmin) {
+        navItems.push({ title: 'หน้าจัดการ (Admin)', href: '/admin', icon: Shield, 'data-test': 'nav-admin-link' });
+    }
     return (
         <>
             <div className="border-b border-sidebar-border/80">
@@ -100,11 +99,12 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                     <div className="flex h-full flex-col justify-between text-sm">
                                         <div className="flex flex-col space-y-4">
-                                            {mainNavItems.map((item) => (
+                                            {navItems.map((item) => (
                                                 <Link
                                                     key={item.title}
                                                     href={item.href}
                                                     className="flex items-center space-x-2 font-medium"
+                                                    data-test={item['data-test']}
                                                 >
                                                     {item.icon && (
                                                         <item.icon className="h-5 w-5" />
@@ -147,6 +147,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                                 ),
                                                 'h-9 cursor-pointer px-3',
                                             )}
+                                            data-test={item['data-test']}
                                         >
                                             {item.icon && (
                                                 <item.icon className="mr-2 h-4 w-4" />
