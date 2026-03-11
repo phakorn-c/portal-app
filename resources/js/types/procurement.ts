@@ -46,12 +46,6 @@ export interface Alert {
     last_notified_at: string | null;
 }
 
-export interface NotificationChannel {
-    id: string;
-    type: 'email' | 'in-app' | 'sms';
-    enabled: boolean;
-    isPro?: boolean;
-}
 
 export interface UserStats {
     activeTracking: number;

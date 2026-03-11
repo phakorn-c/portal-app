@@ -69,7 +69,7 @@ class AnnouncementController extends Controller
 
         $announcement->update([
             'publication_status' => 'published',
-            'published_at' => now(),
+            'published_at' => $announcement->published_at ?? now(),
         ]);
 
         EvaluateSavedSearchAlerts::dispatch($announcement->refresh());
