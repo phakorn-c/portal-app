@@ -97,7 +97,7 @@ function formatBudget(amount: number) {
 function serializeCriteria(criteria: FilterState | Record<string, any>): string {
     const params = new URLSearchParams();
     if (criteria.query) params.set('query', criteria.query as string);
-    if ('keyword' in criteria && criteria.keyword) params.set('keyword', criteria.keyword as string);
+    if ('keyword' in criteria && (criteria as any).keyword) params.set('keyword', (criteria as any).keyword as string);
     if (Array.isArray(criteria.organizations)) {
         criteria.organizations.forEach((val: string) => params.append('organization[]', val));
     }
