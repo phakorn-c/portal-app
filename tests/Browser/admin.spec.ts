@@ -3,12 +3,24 @@ import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
 
 const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
+const databasePath = fileURLToPath(
+    new URL('../../database/database.sqlite', import.meta.url),
+);
+const artisanEnv = {
+    ...process.env,
+    APP_ENV: 'testing',
+    DB_CONNECTION: 'sqlite',
+    DB_DATABASE: databasePath,
+    SESSION_DRIVER: 'file',
+    CACHE_STORE: 'file',
+    QUEUE_CONNECTION: 'sync',
+};
 
 function artisan(...args: string[]) {
     return execFileSync('php', ['artisan', ...args], {
         cwd: projectRoot,
         encoding: 'utf8',
-        env: process.env,
+        env: artisanEnv,
     });
 }
 
