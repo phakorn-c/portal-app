@@ -1,9 +1,9 @@
+import type { VariantProps } from 'class-variance-authority';
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 import * as React from 'react';
 
-import { cn } from '@/lib/utils';
 import { Button, type buttonVariants } from '@/components/ui/button';
-import type { VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
 export interface PaginationProps extends React.HTMLAttributes<HTMLElement> {
     currentPage: number;

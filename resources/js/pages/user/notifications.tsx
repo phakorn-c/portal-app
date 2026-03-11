@@ -1,21 +1,14 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     Bookmark,
-    Edit2,
     FileText,
-    HelpCircle,
     History,
     LayoutDashboard,
     Mail,
-    Plus,
     Settings,
-    Smartphone,
-    Trash2,
     User,
 } from 'lucide-react';
-import { useState } from 'react';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,17 +18,40 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
+import type { FilterState, SavedSearch } from '@/types/procurement';
+
+type NotificationPreference = {
+    website_enabled: boolean;
+    email_enabled: boolean;
+};
+
+type NotificationItem = {
+    id: string;
+    type: string;
+    data: {
+        announcement_id: number;
+        announcement_title: string;
+        saved_search_id: number;
+        saved_search_name: string;
+    };
+    read_at: string | null;
+    created_at: string;
+};
+
+type NotificationPaginator = {
+    data: NotificationItem[];
+    current_page: number;
+    last_page: number;
+};
+
+type PageProps = SharedData & {
+    notifications: NotificationPaginator;
+    preferences: NotificationPreference;
+    alerts: SavedSearch[];
+};
 
 const sidebarNav = [
     {
@@ -76,42 +92,47 @@ const sidebarNav = [
     },
 ];
 
-const existingAlerts = [
-    {
-        id: 1,
-        name: 'งานก่อสร้าง มากกว่า 10 ล้าน',
-        criteria: 'หมวดหมู่: ก่อสร้าง, งบประมาณ: > 10,000,000 บาท',
-        color: 'bg-blue-500',
-    },
-    {
-        id: 2,
-        name: 'เครื่องมือแพทย์ - สาธารณสุขจังหวัด',
-        criteria: 'หน่วยงาน: สำนักงานสาธารณสุข, หมวดหมู่: การแพทย์',
-        color: 'bg-emerald-500',
-    },
-    {
-        id: 3,
-        name: 'ครุภัณฑ์ IT ทุกหน่วยงาน',
-        criteria: 'หมวดหมู่: ไอที/ครุภัณฑ์',
-        color: 'bg-violet-500',
-    },
-];
+function formatTimestamp(value: string): string {
+    return new Date(value).toLocaleString('th-TH');
+}
 
-const workTypes = [
-    'ก่อสร้าง',
-    'ไอที/ครุภัณฑ์',
-    'ที่ปรึกษา',
-    'การแพทย์',
-    'บริการทั่วไป',
-];
+function describeCriteria(criteria: FilterState): string {
+    const parts: string[] = [];
+
+    if (criteria.query.trim() !== '') {
+        parts.push(`คีย์เวิร์ด: ${criteria.query}`);
+    }
+
+    if (criteria.organizations.length > 0) {
+        parts.push(`หน่วยงาน: ${criteria.organizations.join(', ')}`);
+    }
+
+    if (criteria.categories.length > 0) {
+        parts.push(`หมวดหมู่: ${criteria.categories.join(', ')}`);
+    }
+
+    if (criteria.methods.length > 0) {
+        parts.push(`วิธีจัดซื้อ: ${criteria.methods.join(', ')}`);
+    }
+
+    parts.push(
+        `งบประมาณ: ${criteria.budgetRange[0]} - ${criteria.budgetRange[1]} บาท`,
+    );
+
+    return parts.join(' | ');
+}
 
 export default function NotificationSettings() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, notifications, preferences, alerts } =
+        usePage<PageProps>().props;
     const user = auth.user;
 
-    const [emailEnabled, setEmailEnabled] = useState(true);
-    const [inAppEnabled, setInAppEnabled] = useState(true);
-    const [smsEnabled, setSmsEnabled] = useState(false);
+    const updatePreference = (next: NotificationPreference) => {
+        router.put('/user/notification-preferences', next, {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
 
     return (
         <AppHeaderLayout>
@@ -171,7 +192,7 @@ export default function NotificationSettings() {
                                 ตั้งค่าการแจ้งเตือน
                             </h1>
                             <p className="mt-1 text-muted-foreground">
-                                กำหนดเงื่อนไขการแจ้งเตือนเมื่อมีประกาศใหม่ที่ตรงกับความต้องการ
+                                จัดการการแจ้งเตือนจากประกาศใหม่ที่ตรงกับการค้นหาที่บันทึกไว้
                             </p>
                         </div>
 
@@ -180,127 +201,171 @@ export default function NotificationSettings() {
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
-                                            <Plus className="h-5 w-5 text-primary" />
-                                            สร้างการแจ้งเตือนใหม่
+                                            การแจ้งเตือนปัจจุบัน
+                                            <Badge
+                                                variant="secondary"
+                                                className="ml-2"
+                                            >
+                                                {alerts.length} รายการ
+                                            </Badge>
                                         </CardTitle>
                                         <CardDescription>
-                                            ระบุเงื่อนไขที่ต้องการรับการแจ้งเตือนเมื่อมีประกาศใหม่
+                                            เงื่อนไขการแจ้งเตือนที่บันทึกไว้จาก
+                                            Saved Searches
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent>
-                                        <form className="grid gap-6 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="org">
-                                                    ชื่อหน่วยงาน
-                                                </Label>
-                                                <Input
-                                                    id="org"
-                                                    placeholder="เช่น เทศบาลนครขอนแก่น"
-                                                />
+                                    <CardContent className="space-y-4">
+                                        {alerts.map((alert) => (
+                                            <div
+                                                key={alert.id}
+                                                data-test="notification-alert-row"
+                                                className="rounded-lg border border-border p-4"
+                                            >
+                                                <p className="font-semibold text-foreground">
+                                                    {alert.name}
+                                                </p>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    {describeCriteria(
+                                                        alert.criteria,
+                                                    )}
+                                                </p>
+                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                    แจ้งเตือนล่าสุด:{' '}
+                                                    {alert.last_notified_at
+                                                        ? formatTimestamp(
+                                                              alert.last_notified_at,
+                                                          )
+                                                        : 'ยังไม่เคยแจ้งเตือน'}
+                                                </p>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="workType">
-                                                    ประเภทงาน / หมวดหมู่
-                                                </Label>
-                                                <Select>
-                                                    <SelectTrigger id="workType">
-                                                        <SelectValue placeholder="เลือกประเภทงาน" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {workTypes.map(
-                                                            (type) => (
-                                                                <SelectItem
-                                                                    key={type}
-                                                                    value={type}
-                                                                >
-                                                                    {type}
-                                                                </SelectItem>
-                                                            ),
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="budget">
-                                                    งบประมาณขั้นต่ำ (บาท)
-                                                </Label>
-                                                <Input
-                                                    id="budget"
-                                                    type="number"
-                                                    placeholder="เช่น 1000000"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="location">
-                                                    พื้นที่ / อำเภอ
-                                                </Label>
-                                                <Input
-                                                    id="location"
-                                                    placeholder="เช่น อำเภอเมืองขอนแก่น"
-                                                />
-                                            </div>
-                                            <div className="sm:col-span-2">
-                                                <Button className="w-full gap-2 sm:w-auto">
-                                                    <Plus className="h-4 w-4" />
-                                                    เพิ่มเงื่อนไขการแจ้งเตือน
-                                                </Button>
-                                            </div>
-                                        </form>
+                                        ))}
+                                        {alerts.length === 0 && (
+                                            <p className="text-sm text-muted-foreground">
+                                                ยังไม่มีการแจ้งเตือนที่เปิดใช้งาน
+                                            </p>
+                                        )}
                                     </CardContent>
                                 </Card>
 
                                 <Card>
                                     <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="flex items-center gap-2">
-                                                การแจ้งเตือนปัจจุบัน
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="ml-2"
-                                                >
-                                                    {existingAlerts.length}{' '}
-                                                    รายการ
-                                                </Badge>
-                                            </CardTitle>
-                                        </div>
+                                        <CardTitle>
+                                            การแจ้งเตือนในระบบ
+                                        </CardTitle>
+                                        <CardDescription>
+                                            ประวัติการแจ้งเตือนที่ถูกส่งเข้าระบบของคุณ
+                                        </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        {existingAlerts.map((alert) => (
-                                            <div
-                                                key={alert.id}
-                                                className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                                            >
+                                    <CardContent className="space-y-3">
+                                        {notifications.data.map(
+                                            (notification) => (
                                                 <div
-                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${alert.color} text-white`}
+                                                    key={notification.id}
+                                                    className="rounded-lg border border-border p-4"
                                                 >
-                                                    <Bell className="h-5 w-5" />
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div>
+                                                            <p className="font-medium text-foreground">
+                                                                {
+                                                                    notification
+                                                                        .data
+                                                                        .announcement_title
+                                                                }
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                จากการค้นหา:{' '}
+                                                                {
+                                                                    notification
+                                                                        .data
+                                                                        .saved_search_name
+                                                                }
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                                {formatTimestamp(
+                                                                    notification.created_at,
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                        {!notification.read_at && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    router.patch(
+                                                                        `/user/notifications/${notification.id}/read`,
+                                                                        {},
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                            preserveState: true,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                ทำเครื่องหมายว่าอ่านแล้ว
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="font-semibold text-foreground">
-                                                        {alert.name}
-                                                    </p>
-                                                    <p className="truncate text-sm text-muted-foreground">
-                                                        {alert.criteria}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
+                                            ),
+                                        )}
+
+                                        {notifications.data.length === 0 && (
+                                            <p className="text-sm text-muted-foreground">
+                                                ยังไม่มีการแจ้งเตือนในระบบ
+                                            </p>
+                                        )}
+
+                                        {notifications.last_page > 1 && (
+                                            <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
+                                                <span>
+                                                    หน้า{' '}
+                                                    {notifications.current_page}{' '}
+                                                    / {notifications.last_page}
+                                                </span>
+                                                <div className="flex gap-2">
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={
+                                                            notifications.current_page <=
+                                                            1
+                                                        }
+                                                        onClick={() =>
+                                                            router.get(
+                                                                '/user/notifications',
+                                                                {
+                                                                    page:
+                                                                        notifications.current_page -
+                                                                        1,
+                                                                },
+                                                            )
+                                                        }
                                                     >
-                                                        <Edit2 className="h-4 w-4" />
+                                                        ก่อนหน้า
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={
+                                                            notifications.current_page >=
+                                                            notifications.last_page
+                                                        }
+                                                        onClick={() =>
+                                                            router.get(
+                                                                '/user/notifications',
+                                                                {
+                                                                    page:
+                                                                        notifications.current_page +
+                                                                        1,
+                                                                },
+                                                            )
+                                                        }
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        ถัดไป
                                                     </Button>
                                                 </div>
                                             </div>
-                                        ))}
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
@@ -331,9 +396,15 @@ export default function NotificationSettings() {
                                                 </div>
                                             </div>
                                             <Switch
-                                                checked={emailEnabled}
-                                                onCheckedChange={
-                                                    setEmailEnabled
+                                                data-test="notification-channel-email"
+                                                checked={
+                                                    preferences.email_enabled
+                                                }
+                                                onCheckedChange={(checked) =>
+                                                    updatePreference({
+                                                        ...preferences,
+                                                        email_enabled: checked,
+                                                    })
                                                 }
                                             />
                                         </div>
@@ -353,61 +424,18 @@ export default function NotificationSettings() {
                                                 </div>
                                             </div>
                                             <Switch
-                                                checked={inAppEnabled}
-                                                onCheckedChange={
-                                                    setInAppEnabled
+                                                data-test="notification-channel-in-app"
+                                                checked={
+                                                    preferences.website_enabled
+                                                }
+                                                onCheckedChange={(checked) =>
+                                                    updatePreference({
+                                                        ...preferences,
+                                                        website_enabled:
+                                                            checked,
+                                                    })
                                                 }
                                             />
-                                        </div>
-
-                                        <div className="flex items-center justify-between opacity-60">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
-                                                    <Smartphone className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="flex items-center gap-2 font-medium text-foreground">
-                                                        SMS
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className="bg-amber-100 text-amber-700"
-                                                        >
-                                                            Pro
-                                                        </Badge>
-                                                    </p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        รับ SMS
-                                                        เมื่อมีประกาศใหม่
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <Switch
-                                                checked={smsEnabled}
-                                                disabled
-                                            />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="border-primary/20 bg-primary/5">
-                                    <CardContent className="flex items-start gap-4 pt-6">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                            <HelpCircle className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-foreground">
-                                                ต้องการความช่วยเหลือ?
-                                            </p>
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                อ่านคู่มือการใช้งานการแจ้งเตือน
-                                                หรือติดต่อทีมสนับสนุนของเรา
-                                            </p>
-                                            <Button
-                                                variant="link"
-                                                className="mt-2 h-auto p-0 text-primary"
-                                            >
-                                                ดูคู่มือการใช้งาน →
-                                            </Button>
                                         </div>
                                     </CardContent>
                                 </Card>

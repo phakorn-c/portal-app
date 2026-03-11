@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Support\Procurement;
+
+class FilterState
+{
+    public static function defaults(): array
+    {
+        return [
+            'query' => '',
+            'budgetRange' => [0, 10000000],
+            'organizations' => [],
+            'methods' => [],
+            'categories' => [],
+            'sortBy' => 'latest',
+        ];
+    }
+
+    public static function validationRules(string $prefix = 'criteria'): array
+    {
+        return [
+            $prefix => ['required', 'array'],
+            $prefix.'.query' => ['present', 'nullable', 'string'],
+            $prefix.'.budgetRange' => ['required', 'array', 'size:2'],
+            $prefix.'.budgetRange.0' => ['required', 'numeric'],
+            $prefix.'.budgetRange.1' => ['required', 'numeric'],
+            $prefix.'.organizations' => ['present', 'array'],
+            $prefix.'.organizations.*' => ['string'],
+            $prefix.'.methods' => ['present', 'array'],
+            $prefix.'.methods.*' => ['string'],
+            $prefix.'.categories' => ['present', 'array'],
+            $prefix.'.categories.*' => ['string'],
+            $prefix.'.sortBy' => ['required', 'in:latest,budget-high,budget-low,deadline'],
+        ];
+    }
+
+    public static function normalize(array $criteria): array
+    {
+        $defaults = self::defaults();
+
+        return [
+            'query' => (string) ($criteria['query'] ?? $defaults['query']),
+            'budgetRange' => [
+                $criteria['budgetRange'][0] ?? $defaults['budgetRange'][0],
+                $criteria['budgetRange'][1] ?? $defaults['budgetRange'][1],
+            ],
+            'organizations' => array_values($criteria['organizations'] ?? $defaults['organizations']),
+            'methods' => array_values($criteria['methods'] ?? $defaults['methods']),
+            'categories' => array_values($criteria['categories'] ?? $defaults['categories']),
+            'sortBy' => (string) ($criteria['sortBy'] ?? $defaults['sortBy']),
+        ];
+    }
+}

@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import {
     Bell,
     ChevronDown,
@@ -16,7 +16,6 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,105 +29,87 @@ import {
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
+import AppHeaderLayout from '@/layouts/app/app-header-layout';
 
 type Announcement = {
     id: string;
     title: string;
     organization: string;
-    publishedAt: string;
+    published_at: string | null;
     budget: number;
     status: 'open' | 'urgent' | 'closing' | 'closed';
+    publication_status: 'draft' | 'published' | 'hidden';
 };
 
-const announcements: Announcement[] = [
-    {
-        id: '66107382',
-        title: 'ประกวดราคาจ้างก่อสร้างถนนคอนกรีตเสริมเหล็ก บ้านกอกสี หมู่ที่ 8',
-        organization: 'เทศบาลนครขอนแก่น',
-        publishedAt: '20 ต.ค. 2566',
-        budget: 2540000,
-        status: 'open',
-    },
-    {
-        id: '66109221',
-        title: 'ซื้อครุภัณฑ์การแพทย์สำหรับโรงพยาบาลขอนแก่น (ระยะที่ 2)',
-        organization: 'สำนักงานสาธารณสุขจังหวัด',
-        publishedAt: '18 ต.ค. 2566',
-        budget: 15000000,
-        status: 'urgent',
-    },
-    {
-        id: '66101104',
-        title: 'จ้างปรับปรุงอาคารเรียน Smart Classroom คณะวิศวกรรมศาสตร์',
-        organization: 'มหาวิทยาลัยขอนแก่น',
-        publishedAt: '15 ต.ค. 2566',
-        budget: 8450000,
-        status: 'open',
-    },
-    {
-        id: '66098821',
-        title: 'โครงการซ่อมบำรุงทางหลวง ถนนมิตรภาพ กม. 230-245',
-        organization: 'แขวงทางหลวงขอนแก่น',
-        publishedAt: '01 ต.ค. 2566',
-        budget: 45000000,
-        status: 'closed',
-    },
-    {
-        id: '66095512',
-        title: 'จัดซื้อครุภัณฑ์คอมพิวเตอร์สำหรับศูนย์บริการประชาชน',
-        organization: 'องค์การบริหารส่วนจังหวัด',
-        publishedAt: '28 ก.ย. 2566',
-        budget: 3200000,
-        status: 'closing',
-    },
-    {
-        id: '66092334',
-        title: 'จ้างที่ปรึกษาออกแบบระบบบริหารจัดการน้ำเพื่อการเกษตร',
-        organization: 'เทศบาลนครขอนแก่น',
-        publishedAt: '25 ก.ย. 2566',
-        budget: 5800000,
-        status: 'closed',
-    },
-];
+type PaginatedData<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+};
 
-const stats = [
-    {
-        label: 'ประกาศที่เปิดอยู่',
-        value: '128',
-        change: '+12 รายการจากสัปดาห์ก่อน',
-        changeType: 'positive' as const,
-        icon: FolderOpen,
-        color: 'text-emerald-600',
-        bgColor: 'bg-emerald-50',
-    },
-    {
-        label: 'รอตรวจสอบเอกสาร',
-        value: '9',
-        change: 'ต้องดำเนินการภายใน 3 วัน',
-        changeType: 'warning' as const,
-        icon: FileText,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-    },
-    {
-        label: 'หมดอายุ/ปิดรับแล้ว',
-        value: '342',
-        change: '+24 เดือนนี้',
-        changeType: 'neutral' as const,
-        icon: Bell,
-        color: 'text-slate-600',
-        bgColor: 'bg-slate-100',
-    },
-];
+type Stats = {
+    total_announcements: number;
+    published_announcements: number;
+    draft_announcements: number;
+    total_users: number;
+};
 
+interface AdminDashboardProps {
+    announcements: PaginatedData<Announcement>;
+    stats: Stats;
+}
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ announcements, stats }: AdminDashboardProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
 
+    const handlePublishToggle = (item: Announcement) => {
+        if (item.publication_status === 'published') {
+            router.patch(route('admin.announcements.hide', item.id));
+        } else {
+            router.patch(route('admin.announcements.publish', item.id));
+        }
+    };
+
+    const handleDelete = (item: Announcement) => {
+        if (confirm('คุณแน่ใจหรือไม่ที่จะลบประกาศนี้?')) {
+            router.delete(route('admin.announcements.destroy', item.id));
+        }
+    };
+
+    const statCards = [
+        {
+            label: 'ประกาศทั้งหมด',
+            value: stats.total_announcements,
+            change: 'รายการทั้งหมดในระบบ',
+            changeType: 'neutral' as const,
+            icon: FolderOpen,
+            color: 'text-slate-600',
+            bgColor: 'bg-slate-100',
+        },
+        {
+            label: 'ประกาศที่เผยแพร่แล้ว',
+            value: stats.published_announcements,
+            change: 'แสดงผลบนหน้าเว็บ',
+            changeType: 'positive' as const,
+            icon: FileText,
+            color: 'text-emerald-600',
+            bgColor: 'bg-emerald-50',
+        },
+        {
+            label: 'ผู้ใช้งานทั้งหมด',
+            value: stats.total_users,
+            change: 'ผู้ใช้ในระบบ',
+            changeType: 'neutral' as const,
+            icon: Users,
+            color: 'text-blue-600',
+            bgColor: 'bg-blue-50',
+        },
+    ];
     const columns: Column<Announcement>[] = [
         {
             key: 'title',
@@ -154,11 +135,11 @@ export default function AdminDashboard() {
             ),
         },
         {
-            key: 'publishedAt',
+            key: 'published_at',
             header: 'วันที่ประกาศ',
             cell: (item) => (
                 <span className="text-muted-foreground">
-                    {item.publishedAt}
+                    {item.published_at ? new Date(item.published_at).toLocaleDateString('th-TH') : '-'}
                 </span>
             ),
         },
@@ -195,9 +176,11 @@ export default function AdminDashboard() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        title="ซ่อน"
+                        title={item.publication_status === 'published' ? 'ซ่อน' : 'เผยแพร่'}
+                        onClick={() => handlePublishToggle(item)}
+                        data-test="admin-announcement-publish"
                     >
-                        {item.status === 'closed' ? (
+                        {item.publication_status === 'published' ? (
                             <Eye className="h-4 w-4" />
                         ) : (
                             <EyeOff className="h-4 w-4" />
@@ -208,6 +191,7 @@ export default function AdminDashboard() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                         title="ลบ"
+                        onClick={() => handleDelete(item)}
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
@@ -218,15 +202,14 @@ export default function AdminDashboard() {
         },
     ];
 
-    const filteredAnnouncements = announcements.filter(
+    const filteredAnnouncements = announcements.data.filter(
         (item) =>
             item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.organization
-                .toLowerCase()
+                ?.toLowerCase()
                 .includes(searchQuery.toLowerCase()) ||
-            item.id.includes(searchQuery),
+            item.id.toString().includes(searchQuery),
     );
-
     return (
         <AppHeaderLayout>
             <Head title="Admin Dashboard" />
@@ -245,14 +228,22 @@ export default function AdminDashboard() {
                                 ดูแลข้อมูลและควบคุมการประกาศทั้งหมดของจังหวัดขอนแก่น
                             </p>
                         </div>
-                        <Button className="gap-2 shadow-sm">
-                            <Plus className="h-4 w-4" />
-                            เพิ่มประกาศใหม่
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button asChild variant="outline" className="gap-2 shadow-sm">
+                                <Link href={route('admin.users.index')}>
+                                    <Users className="h-4 w-4" />
+                                    จัดการผู้ใช้งาน
+                                </Link>
+                            </Button>
+                            <Button className="gap-2 shadow-sm">
+                                <Plus className="h-4 w-4" />
+                                เพิ่มประกาศใหม่
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
-                        {stats.map((stat) => (
+                        {statCards.map((stat) => (
                             <Card key={stat.label}>
                                 <CardContent className="flex items-center gap-4 pt-6">
                                     <div
@@ -343,17 +334,26 @@ export default function AdminDashboard() {
                                 data={filteredAnnouncements}
                                 columns={columns}
                                 emptyMessage="ไม่พบประกาศที่ตรงกับการค้นหา"
+                                getRowProps={(item) => ({
+                                    'data-test': 'admin-announcement-row',
+                                } as React.HTMLAttributes<HTMLTableRowElement>)}
                             />
                         </div>
                         <div className="mt-6 flex items-center justify-between">
                             <p className="text-sm text-muted-foreground">
                                 แสดง {filteredAnnouncements.length} จาก{' '}
-                                {announcements.length} รายการ
+                                {announcements.total} รายการ
                             </p>
                             <Pagination
-                                currentPage={currentPage}
-                                totalPages={3}
-                                onPageChange={setCurrentPage}
+                                currentPage={announcements.current_page}
+                                totalPages={announcements.last_page}
+                                onPageChange={(page) => {
+                                    router.get(
+                                        route('admin.dashboard'),
+                                        { page },
+                                        { preserveState: true }
+                                    );
+                                }}
                             />
                         </div>
                     </CardContent>

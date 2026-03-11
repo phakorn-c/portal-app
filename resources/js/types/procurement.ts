@@ -39,16 +39,11 @@ export interface ProcurementMethod {
 }
 
 export interface Alert {
-    id: string | number;
+    id: string;
     name: string;
-    criteria: string;
-    organizationName?: string;
-    workType?: string;
-    minBudget?: number;
-    location?: string;
-    color?: string;
-    enabled: boolean;
-    createdAt?: string;
+    criteria: FilterState;
+    alert_enabled: boolean;
+    last_notified_at: string | null;
 }
 
 export interface NotificationChannel {
@@ -73,17 +68,10 @@ export interface AdminStats {
 
 export interface SavedSearch {
     id: string;
-    label: string;
-    query?: string;
-    filters?: {
-        organizations?: string[];
-        methods?: string[];
-        categories?: string[];
-        budgetMin?: number;
-        budgetMax?: number;
-    };
-    resultCount: number;
-    createdAt?: string;
+    name: string;
+    criteria: FilterState;
+    alert_enabled: boolean;
+    last_notified_at: string | null;
 }
 
 export interface ActivityItem {

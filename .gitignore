@@ -27,3 +27,6 @@ yarn-error.log
 /.vscode
 /.zed
 website-idea.md
+/playwright-report
+/test-results
+.sisyphus

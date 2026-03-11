@@ -1,17 +1,15 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import type { FormDataConvertible } from '@inertiajs/core';
 import {
     Building2,
     CalendarDays,
     ChevronRight,
-    FileText,
     Gavel,
-    MapPin,
     Search,
     SlidersHorizontal,
     X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,95 +25,35 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { StatusBadge } from '@/components/ui/status-badge';
+import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
+import type { FilterState } from '@/types/procurement';
 
-type Announcement = {
-    id: string;
+type SortValue = FilterState['sortBy'];
+
+type ServerAnnouncement = {
+    id: number;
     title: string;
     organization: string;
     category: string;
     method: string;
-    budget: number;
-    location: string;
-    publishedAt: string;
+    budget: number | string;
     deadline: string;
     status: 'open' | 'urgent' | 'closing' | 'closed';
 };
 
-const announcements: Announcement[] = [
-    {
-        id: '66107382',
-        title: 'ประกวดราคาจ้างก่อสร้างถนนคอนกรีตเสริมเหล็ก บ้านกอกสี หมู่ที่ 8',
-        organization: 'เทศบาลนครขอนแก่น',
-        category: 'ก่อสร้าง',
-        method: 'e-Bidding',
-        budget: 2540000,
-        location: 'อำเภอเมืองขอนแก่น',
-        publishedAt: '20 ต.ค. 2566',
-        deadline: '25 ต.ค. 2566',
-        status: 'open',
-    },
-    {
-        id: '66109221',
-        title: 'ซื้อครุภัณฑ์การแพทย์สำหรับโรงพยาบาลขอนแก่น (ระยะที่ 2)',
-        organization: 'สำนักงานสาธารณสุขจังหวัด',
-        category: 'การแพทย์',
-        method: 'วิธีเฉพาะเจาะจง',
-        budget: 15000000,
-        location: 'อำเภอเมืองขอนแก่น',
-        publishedAt: '18 ต.ค. 2566',
-        deadline: 'พรุ่งนี้',
-        status: 'urgent',
-    },
-    {
-        id: '66101104',
-        title: 'จ้างปรับปรุงอาคารเรียน Smart Classroom คณะวิศวกรรมศาสตร์',
-        organization: 'มหาวิทยาลัยขอนแก่น',
-        category: 'ก่อสร้าง',
-        method: 'e-Bidding',
-        budget: 8450000,
-        location: 'อำเภอเมืองขอนแก่น',
-        publishedAt: '15 ต.ค. 2566',
-        deadline: '02 พ.ย. 2566',
-        status: 'open',
-    },
-    {
-        id: '66098821',
-        title: 'โครงการซ่อมบำรุงทางหลวง ถนนมิตรภาพ กม. 230-245',
-        organization: 'แขวงทางหลวงขอนแก่น',
-        category: 'ก่อสร้าง',
-        method: 'e-Bidding',
-        budget: 45000000,
-        location: 'อำเภอน้ำพอง',
-        publishedAt: '01 ต.ค. 2566',
-        deadline: '12 ต.ค. 2566',
-        status: 'closed',
-    },
-    {
-        id: '66095512',
-        title: 'จัดซื้อครุภัณฑ์คอมพิวเตอร์สำหรับศูนย์บริการประชาชน',
-        organization: 'องค์การบริหารส่วนจังหวัด',
-        category: 'ไอที/ครุภัณฑ์',
-        method: 'e-Market',
-        budget: 3200000,
-        location: 'อำเภอเมืองขอนแก่น',
-        publishedAt: '28 ก.ย. 2566',
-        deadline: '15 ต.ค. 2566',
-        status: 'closing',
-    },
-    {
-        id: '66092334',
-        title: 'จ้างที่ปรึกษาออกแบบระบบบริหารจัดการน้ำเพื่อการเกษตร',
-        organization: 'เทศบาลนครขอนแก่น',
-        category: 'ที่ปรึกษา',
-        method: 'คัดเลือก',
-        budget: 5800000,
-        location: 'อำเภอบ้านไผ่',
-        publishedAt: '25 ก.ย. 2566',
-        deadline: '10 ต.ค. 2566',
-        status: 'closed',
-    },
-];
+type AnnouncementPagination = {
+    data: ServerAnnouncement[];
+    total: number;
+    current_page: number;
+    last_page: number;
+};
+
+type PageProps = SharedData & {
+    announcements: AnnouncementPagination;
+    filters: FilterState;
+    pagination: AnnouncementPagination;
+};
 
 const organizations = [
     'องค์การบริหารส่วนจังหวัด',
@@ -139,138 +77,173 @@ function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
 
-const ITEMS_PER_PAGE = 4;
+function parseBudget(value: number | string): number {
+    if (typeof value === 'number') {
+        return value;
+    }
+
+    return Number.parseFloat(value) || 0;
+}
+
+function mapSortForQuery(sortBy: SortValue): string {
+    if (sortBy === 'latest') {
+        return 'newest';
+    }
+    if (sortBy === 'deadline') {
+        return 'deadline_asc';
+    }
+    if (sortBy === 'budget-low') {
+        return 'budget_asc';
+    }
+
+    return 'budget_desc';
+}
+
+function buildQueryParams(
+    criteria: FilterState,
+    page = 1,
+): Record<string, FormDataConvertible> {
+    return {
+        query: criteria.query,
+        organization: criteria.organizations,
+        method: criteria.methods,
+        category: criteria.categories,
+        budget_min: criteria.budgetRange[0],
+        budget_max: criteria.budgetRange[1],
+        sort: mapSortForQuery(criteria.sortBy),
+        page,
+    };
+}
 
 export default function ProcurementSearch() {
-    const { auth } = usePage<SharedData>().props;
-    const [query, setQuery] = useState('');
-    const [budgetRange, setBudgetRange] = useState([0, 100]);
-    const [sort, setSort] = useState('ล่าสุด');
+    const { auth, announcements, filters, pagination } =
+        usePage<PageProps>().props;
+
+    const [query, setQuery] = useState(filters.query);
+    const [budgetRange, setBudgetRange] = useState<[number, number]>(
+        filters.budgetRange,
+    );
+    const [sortBy, setSortBy] = useState<SortValue>(filters.sortBy);
     const [selectedOrganizations, setSelectedOrganizations] = useState<
         string[]
-    >(['เทศบาลนครขอนแก่น']);
-    const [selectedMethods, setSelectedMethods] = useState<string[]>([
-        'e-Bidding',
-    ]);
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-    const [currentPage, setCurrentPage] = useState(1);
-
-    const budgetMin = budgetRange[0] * 500000;
-    const budgetMax =
-        budgetRange[1] === 100 ? Infinity : budgetRange[1] * 500000;
-
-    const filteredAnnouncements = useMemo(() => {
-        return announcements.filter((announcement) => {
-            const matchesQuery = query
-                ? `${announcement.title} ${announcement.organization} ${announcement.id}`
-                      .toLowerCase()
-                      .includes(query.toLowerCase())
-                : true;
-
-            const matchesBudget =
-                announcement.budget >= budgetMin &&
-                (budgetMax === Infinity || announcement.budget <= budgetMax);
-
-            const matchesOrganization = selectedOrganizations.length
-                ? selectedOrganizations.includes(announcement.organization)
-                : true;
-            const matchesMethod = selectedMethods.length
-                ? selectedMethods.includes(announcement.method)
-                : true;
-            const matchesCategory = selectedCategories.length
-                ? selectedCategories.includes(announcement.category)
-                : true;
-
-            return (
-                matchesQuery &&
-                matchesBudget &&
-                matchesOrganization &&
-                matchesMethod &&
-                matchesCategory
-            );
-        });
-    }, [
-        query,
-        budgetMin,
-        budgetMax,
-        selectedOrganizations,
-        selectedMethods,
-        selectedCategories,
-    ]);
-
-    const sortedAnnouncements = useMemo(() => {
-        const next = [...filteredAnnouncements];
-        if (sort === 'งบสูง') {
-            return next.sort((a, b) => b.budget - a.budget);
-        }
-        if (sort === 'งบต่ำ') {
-            return next.sort((a, b) => a.budget - b.budget);
-        }
-        return next;
-    }, [filteredAnnouncements, sort]);
-
-    const totalPages = Math.ceil(sortedAnnouncements.length / ITEMS_PER_PAGE);
-    const paginatedAnnouncements = sortedAnnouncements.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE,
+    >(filters.organizations);
+    const [selectedMethods, setSelectedMethods] = useState<string[]>(
+        filters.methods,
     );
+    const [selectedCategories, setSelectedCategories] = useState<string[]>(
+        filters.categories,
+    );
+
+    useEffect(() => {
+        setQuery(filters.query);
+        setBudgetRange(filters.budgetRange);
+        setSortBy(filters.sortBy);
+        setSelectedOrganizations(filters.organizations);
+        setSelectedMethods(filters.methods);
+        setSelectedCategories(filters.categories);
+    }, [filters]);
+
+    const submitFilters = (next: FilterState, page = 1) => {
+        router.get('/procurement', buildQueryParams(next, page), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const criteria: FilterState = {
+        query,
+        budgetRange,
+        organizations: selectedOrganizations,
+        methods: selectedMethods,
+        categories: selectedCategories,
+        sortBy,
+    };
 
     const activeFilters = [
         ...selectedOrganizations.map((value) => ({
-            type: 'องค์กร',
             value,
-            onRemove: () =>
-                setSelectedOrganizations((current) =>
-                    current.filter((item) => item !== value),
-                ),
+            onRemove: () => {
+                const next = selectedOrganizations.filter(
+                    (item) => item !== value,
+                );
+                setSelectedOrganizations(next);
+                submitFilters({ ...criteria, organizations: next });
+            },
         })),
         ...selectedMethods.map((value) => ({
-            type: 'วิธีการ',
             value,
-            onRemove: () =>
-                setSelectedMethods((current) =>
-                    current.filter((item) => item !== value),
-                ),
+            onRemove: () => {
+                const next = selectedMethods.filter((item) => item !== value);
+                setSelectedMethods(next);
+                submitFilters({ ...criteria, methods: next });
+            },
         })),
         ...selectedCategories.map((value) => ({
-            type: 'หมวดหมู่',
             value,
-            onRemove: () =>
-                setSelectedCategories((current) =>
-                    current.filter((item) => item !== value),
-                ),
+            onRemove: () => {
+                const next = selectedCategories.filter(
+                    (item) => item !== value,
+                );
+                setSelectedCategories(next);
+                submitFilters({ ...criteria, categories: next });
+            },
         })),
     ];
 
-    const clearAllFilters = () => {
-        setSelectedOrganizations([]);
-        setSelectedMethods([]);
-        setSelectedCategories([]);
-        setBudgetRange([0, 100]);
-        setQuery('');
-        setCurrentPage(1);
-    };
+    const hasActiveFilters =
+        activeFilters.length > 0 ||
+        query.trim() !== '' ||
+        budgetRange[0] !== 0 ||
+        budgetRange[1] !== 10000000;
 
-    const hasActiveFilters = activeFilters.length > 0 || query.length > 0;
+    const cards = useMemo(
+        () =>
+            announcements.data.map((announcement) => ({
+                ...announcement,
+                budget: parseBudget(announcement.budget),
+            })),
+        [announcements.data],
+    );
+
+    const clearAllFilters = () => {
+        const next: FilterState = {
+            query: '',
+            budgetRange: [0, 10000000],
+            organizations: [],
+            methods: [],
+            categories: [],
+            sortBy: 'latest',
+        };
+
+        setQuery(next.query);
+        setBudgetRange(next.budgetRange);
+        setSelectedOrganizations(next.organizations);
+        setSelectedMethods(next.methods);
+        setSelectedCategories(next.categories);
+        setSortBy(next.sortBy);
+
+        submitFilters(next);
+    };
 
     const toggleFilter = (
         value: string,
         values: string[],
         setter: (next: string[]) => void,
+        key: 'organizations' | 'methods' | 'categories',
     ) => {
-        if (values.includes(value)) {
-            setter(values.filter((item) => item !== value));
-        } else {
-            setter([...values, value]);
-        }
-        setCurrentPage(1);
+        const next = values.includes(value)
+            ? values.filter((item) => item !== value)
+            : [...values, value];
+
+        setter(next);
+        submitFilters({ ...criteria, [key]: next });
     };
 
     return (
         <AppHeaderLayout>
             <Head title="ประกาศจัดซื้อจัดจ้าง" />
             <div className="flex flex-col gap-8 px-4 py-6 md:px-8">
-                {/* Hero Section */}
                 <div className="rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 md:p-10">
                     <div className="flex flex-col gap-6">
                         <div className="space-y-3">
@@ -291,13 +264,20 @@ export default function ProcurementSearch() {
                                 <Input
                                     value={query}
                                     onChange={(event) => {
-                                        setQuery(event.target.value);
-                                        setCurrentPage(1);
+                                        const nextQuery = event.target.value;
+                                        setQuery(nextQuery);
+                                        submitFilters({
+                                            ...criteria,
+                                            query: nextQuery,
+                                        });
                                     }}
                                     placeholder="ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน..."
                                     className="h-14 rounded-xl border-none bg-card pr-28 pl-12 text-base shadow-md ring-1 ring-border focus-visible:ring-2 focus-visible:ring-primary"
                                 />
-                                <Button className="absolute top-2 right-2 h-10 rounded-lg px-6">
+                                <Button
+                                    className="absolute top-2 right-2 h-10 rounded-lg px-6"
+                                    onClick={() => submitFilters(criteria)}
+                                >
                                     ค้นหา
                                 </Button>
                             </div>
@@ -314,9 +294,7 @@ export default function ProcurementSearch() {
                     </div>
                 </div>
 
-                {/* Main Grid */}
                 <div className="grid gap-8 lg:grid-cols-12">
-                    {/* Filter Sidebar */}
                     <aside className="lg:col-span-3">
                         <Card className="sticky top-24">
                             <CardHeader className="border-b border-border pb-4">
@@ -336,26 +314,32 @@ export default function ProcurementSearch() {
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-8 pt-6">
-                                {/* Budget Range */}
                                 <div className="space-y-4">
                                     <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         ช่วงงบประมาณ
                                     </h4>
                                     <div className="px-1">
                                         <Slider
-                                            defaultValue={[0, 100]}
                                             value={budgetRange}
                                             onValueChange={(value) => {
-                                                setBudgetRange(value);
-                                                setCurrentPage(1);
+                                                const next = [
+                                                    value[0] ?? 0,
+                                                    value[1] ?? 10000000,
+                                                ] as [number, number];
+                                                setBudgetRange(next);
+                                                submitFilters({
+                                                    ...criteria,
+                                                    budgetRange: next,
+                                                });
                                             }}
-                                            max={100}
-                                            step={1}
+                                            min={0}
+                                            max={10000000}
+                                            step={100000}
                                             className="w-full"
                                         />
                                         <div className="mt-3 flex justify-between text-sm text-muted-foreground">
                                             <span>0 บาท</span>
-                                            <span>50 ล้าน+</span>
+                                            <span>10 ล้าน</span>
                                         </div>
                                         <div className="mt-3 grid grid-cols-2 gap-2">
                                             <div className="relative">
@@ -365,10 +349,7 @@ export default function ProcurementSearch() {
                                                 <Input
                                                     placeholder="ต่ำสุด"
                                                     className="h-9 pl-6 text-sm"
-                                                    value={
-                                                        budgetRange[0] *
-                                                            500000 || ''
-                                                    }
+                                                    value={budgetRange[0]}
                                                     readOnly
                                                 />
                                             </div>
@@ -379,12 +360,7 @@ export default function ProcurementSearch() {
                                                 <Input
                                                     placeholder="สูงสุด"
                                                     className="h-9 pl-6 text-sm"
-                                                    value={
-                                                        budgetRange[1] === 100
-                                                            ? 'ไม่จำกัด'
-                                                            : budgetRange[1] *
-                                                              500000
-                                                    }
+                                                    value={budgetRange[1]}
                                                     readOnly
                                                 />
                                             </div>
@@ -392,7 +368,6 @@ export default function ProcurementSearch() {
                                     </div>
                                 </div>
 
-                                {/* Organizations */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         หน่วยงาน / ภาคส่วน
@@ -412,6 +387,7 @@ export default function ProcurementSearch() {
                                                             org,
                                                             selectedOrganizations,
                                                             setSelectedOrganizations,
+                                                            'organizations',
                                                         )
                                                     }
                                                 />
@@ -423,7 +399,6 @@ export default function ProcurementSearch() {
                                     </div>
                                 </div>
 
-                                {/* Procurement Methods */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         วิธีการจัดซื้อจัดจ้าง
@@ -443,6 +418,7 @@ export default function ProcurementSearch() {
                                                             method,
                                                             selectedMethods,
                                                             setSelectedMethods,
+                                                            'methods',
                                                         )
                                                     }
                                                 />
@@ -454,7 +430,6 @@ export default function ProcurementSearch() {
                                     </div>
                                 </div>
 
-                                {/* Categories */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         หมวดหมู่ / ประเภทงาน
@@ -474,6 +449,7 @@ export default function ProcurementSearch() {
                                                             cat,
                                                             selectedCategories,
                                                             setSelectedCategories,
+                                                            'categories',
                                                         )
                                                     }
                                                 />
@@ -488,27 +464,20 @@ export default function ProcurementSearch() {
                         </Card>
                     </aside>
 
-                    {/* Results */}
                     <div className="space-y-6 lg:col-span-9">
-                        {/* Results Header */}
                         <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center">
                             <div className="space-y-2">
                                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    พบทั้งหมด
+                                    พบทั้งหมด{' '}
                                     <span className="text-lg font-bold text-foreground">
-                                        {sortedAnnouncements.length}
-                                    </span>
+                                        {pagination.total}
+                                    </span>{' '}
                                     รายการ
-                                    <span className="mx-1 h-1 w-1 rounded-full bg-muted-foreground" />
-                                    เรียงตาม
-                                    <span className="cursor-pointer font-medium text-primary hover:underline">
-                                        {sort}
-                                    </span>
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     {activeFilters.map((filter) => (
                                         <Badge
-                                            key={`${filter.type}-${filter.value}`}
+                                            key={filter.value}
                                             variant="secondary"
                                             className="gap-1.5 border border-primary/20 bg-primary/5 text-primary"
                                         >
@@ -532,27 +501,39 @@ export default function ProcurementSearch() {
                                     )}
                                 </div>
                             </div>
-                            <Select value={sort} onValueChange={setSort}>
-                                <SelectTrigger className="w-[160px]">
+                            <Select
+                                value={sortBy}
+                                onValueChange={(value) => {
+                                    const next = value as SortValue;
+                                    setSortBy(next);
+                                    submitFilters({
+                                        ...criteria,
+                                        sortBy: next,
+                                    });
+                                }}
+                            >
+                                <SelectTrigger className="w-[200px]">
                                     <SelectValue placeholder="เรียงตาม" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ล่าสุด">
+                                    <SelectItem value="latest">
                                         ใหม่ล่าสุด
                                     </SelectItem>
-                                    <SelectItem value="งบสูง">
+                                    <SelectItem value="deadline">
+                                        กำหนดส่งใกล้สุด
+                                    </SelectItem>
+                                    <SelectItem value="budget-high">
                                         งบประมาณสูงสุด
                                     </SelectItem>
-                                    <SelectItem value="งบต่ำ">
+                                    <SelectItem value="budget-low">
                                         งบประมาณต่ำสุด
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        {/* Announcement Cards */}
                         <div className="space-y-4">
-                            {paginatedAnnouncements.map((announcement) => (
+                            {cards.map((announcement) => (
                                 <article
                                     key={announcement.id}
                                     className={`group rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-md ${
@@ -562,7 +543,6 @@ export default function ProcurementSearch() {
                                     }`}
                                 >
                                     <div className="flex flex-col gap-4">
-                                        {/* Header */}
                                         <div className="flex items-start justify-between gap-4">
                                             <StatusBadge
                                                 status={announcement.status}
@@ -572,12 +552,10 @@ export default function ProcurementSearch() {
                                             </span>
                                         </div>
 
-                                        {/* Title */}
                                         <h3 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary">
                                             {announcement.title}
                                         </h3>
 
-                                        {/* Meta Info */}
                                         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                                             <div className="flex items-center gap-1.5">
                                                 <Building2 className="h-4 w-4 text-primary" />
@@ -594,7 +572,6 @@ export default function ProcurementSearch() {
                                             </div>
                                         </div>
 
-                                        {/* Footer */}
                                         <div className="flex flex-col items-start justify-between gap-4 border-t border-border pt-4 sm:flex-row sm:items-center">
                                             <div className="flex items-center gap-6">
                                                 <div>
@@ -612,17 +589,7 @@ export default function ProcurementSearch() {
                                                     <p className="text-xs text-muted-foreground">
                                                         สิ้นสุดรับสมัคร
                                                     </p>
-                                                    <p
-                                                        className={`flex items-center gap-1 text-sm font-semibold ${
-                                                            announcement.status ===
-                                                            'urgent'
-                                                                ? 'text-amber-600'
-                                                                : announcement.status ===
-                                                                    'closed'
-                                                                  ? 'text-muted-foreground'
-                                                                  : 'text-foreground'
-                                                        }`}
-                                                    >
+                                                    <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                                                         <CalendarDays className="h-4 w-4" />
                                                         {announcement.deadline}
                                                     </p>
@@ -654,13 +621,14 @@ export default function ProcurementSearch() {
                             ))}
                         </div>
 
-                        {/* Pagination */}
-                        {totalPages > 1 && (
+                        {pagination.last_page > 1 && (
                             <div className="mt-8">
                                 <Pagination
-                                    currentPage={currentPage}
-                                    totalPages={totalPages}
-                                    onPageChange={setCurrentPage}
+                                    currentPage={pagination.current_page}
+                                    totalPages={pagination.last_page}
+                                    onPageChange={(page) =>
+                                        submitFilters(criteria, page)
+                                    }
                                 />
                             </div>
                         )}

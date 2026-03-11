@@ -15,6 +15,7 @@ export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> 
     columns: Column<T>[];
     onRowClick?: (item: T, index: number) => void;
     emptyMessage?: string;
+    getRowProps?: (item: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>;
 }
 
 function DataTable<T extends Record<string, unknown>>({
@@ -23,6 +24,7 @@ function DataTable<T extends Record<string, unknown>>({
     onRowClick,
     emptyMessage = 'ไม่มีข้อมูล',
     className,
+    getRowProps,
     ...props
 }: DataTableProps<T>) {
     return (
@@ -60,8 +62,10 @@ function DataTable<T extends Record<string, unknown>>({
                                 className={cn(
                                     'transition-colors hover:bg-muted/30',
                                     onRowClick && 'cursor-pointer',
+                                    getRowProps?.(item, rowIndex)?.className
                                 )}
                                 onClick={() => onRowClick?.(item, rowIndex)}
+                                {...getRowProps?.(item, rowIndex)}
                             >
                                 {columns.map((col) => (
                                     <td
