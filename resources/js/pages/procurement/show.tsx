@@ -63,7 +63,7 @@ function formatBudget(value: number | string): string {
 }
 
 export default function ProcurementAnnouncement() {
-    const { announcement } = usePage<PageProps>().props;
+    const { announcement, auth } = usePage<PageProps>().props;
     const primaryAttachment = announcement.attachments[0] ?? null;
 
     const timelineItems: TimelineItem[] = [
@@ -120,14 +120,16 @@ export default function ProcurementAnnouncement() {
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        <Button
-                            variant="outline"
-                            className="gap-2"
-                            type="button"
-                        >
-                            <Bookmark className="h-4 w-4" />
-                            บันทึก
-                        </Button>
+                        {auth.user && (
+                            <Button
+                                variant="outline"
+                                className="gap-2"
+                                type="button"
+                            >
+                                <Bookmark className="h-4 w-4" />
+                                บันทึก
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             className="gap-2"

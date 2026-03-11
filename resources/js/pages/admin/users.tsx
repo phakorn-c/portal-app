@@ -1,5 +1,7 @@
 import { Head, router, Link } from '@inertiajs/react';
 import { ShieldCheck, Trash2, Users, ArrowLeft } from 'lucide-react';
+import * as adminRoutes from '@/routes/admin';
+import * as userRoutes from '@/routes/admin/users';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,7 +35,7 @@ export default function AdminUsers({ users }: AdminUsersProps) {
     const handleRoleChange = (user: User, newRole: string) => {
         setError(null);
         router.patch(
-            route('admin.users.update-role', user.id),
+            userRoutes.updateRole.url(user.id),
             { role: newRole },
             {
                 preserveScroll: true,
@@ -51,7 +53,7 @@ export default function AdminUsers({ users }: AdminUsersProps) {
     const handleDelete = (user: User) => {
         if (confirm(`คุณแน่ใจหรือไม่ที่จะลบผู้ใช้ ${user.name}?`)) {
             setError(null);
-            router.delete(route('admin.users.destroy', user.id), {
+            router.delete(userRoutes.destroy.url(user.id), {
                 preserveScroll: true,
                 onError: (errors) => {
                     if (errors.message) {
@@ -147,7 +149,7 @@ export default function AdminUsers({ users }: AdminUsersProps) {
                             variant="outline"
                             className="gap-2 shadow-sm"
                         >
-                            <Link href={route('admin.dashboard')}>
+                            <Link href={adminRoutes.dashboard.url()}>
                                 <ArrowLeft className="h-4 w-4" />
                                 กลับไปหน้าหลัก
                             </Link>
@@ -193,7 +195,7 @@ export default function AdminUsers({ users }: AdminUsersProps) {
                                 totalPages={users.last_page}
                                 onPageChange={(page) => {
                                     router.get(
-                                        route('admin.users.index'),
+                                        userRoutes.index.url(),
                                         { page },
                                         { preserveState: true },
                                     );

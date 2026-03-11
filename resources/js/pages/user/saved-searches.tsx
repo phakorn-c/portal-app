@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
+import type { FilterState } from '@/types/procurement';
 import { Pagination } from '@/components/ui/pagination';
 import { useState } from 'react';
 import {
@@ -78,6 +79,30 @@ const sidebarNav = [
         active: false,
     },
 ];
+function serializeCriteria(criteria: FilterState | Record<string, any>): string {
+    const params = new URLSearchParams();
+    if (criteria.query) params.set('query', criteria.query as string);
+    if ('keyword' in criteria && criteria.keyword) params.set('keyword', criteria.keyword as string);
+    if (Array.isArray(criteria.organizations)) {
+        criteria.organizations.forEach((val: string) => params.append('organization[]', val));
+    }
+    if (Array.isArray(criteria.methods)) {
+        criteria.methods.forEach((val: string) => params.append('method[]', val));
+    }
+    if (Array.isArray(criteria.categories)) {
+        criteria.categories.forEach((val: string) => params.append('category[]', val));
+    }
+    if (criteria.budgetRange?.[0] > 0) {
+        params.set('budget_min', String(criteria.budgetRange[0]));
+    }
+    if (criteria.budgetRange?.[1] > 0) {
+        params.set('budget_max', String(criteria.budgetRange[1]));
+    }
+    if (criteria.sortBy) {
+        params.set('sort', criteria.sortBy as string);
+    }
+    return params.toString();
+}
 
 export default function UserSavedSearches({
     savedSearches,
@@ -292,7 +317,7 @@ export default function UserSavedSearches({
                                                     data-test="run-saved-search-button"
                                                 >
                                                     <Link
-                                                        href={`/procurement?${new URLSearchParams(search.criteria as any).toString()}`}
+                                                        href={`/procurement?${serializeCriteria(search.criteria)}`}
                                                     >
                                                         <Search className="mr-2 h-4 w-4" />
                                                         ค้นหา

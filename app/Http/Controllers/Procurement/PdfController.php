@@ -8,11 +8,11 @@ use App\Models\AnnouncementAttachment;
 use App\Models\ListingHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PdfController extends Controller
 {
-    public function show(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): BinaryFileResponse
+    public function show(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): StreamedResponse
     {
         if ($announcement->publication_status !== 'published') {
             abort(404);
@@ -33,13 +33,17 @@ class PdfController extends Controller
             );
         }
 
-        if (! Storage::disk('public')->exists($attachment->stored_filename)) {
+        if (! Storage::disk('local')->exists($attachment->stored_filename)) {
             abort(404);
         }
 
-        return response()->file(
-            Storage::disk('public')->path($attachment->stored_filename),
-            ['Content-Type' => 'application/pdf']
-        );
+        return response()->streamDownload(function () use ($attachment): void {
+            $stream = Storage::disk('local')->readStream($attachment->stored_filename);
+
+            if (is_resource($stream)) {
+                fpassthru($stream);
+                fclose($stream);
+            }
+        }, $attachment->filename, ['Content-Type' => 'application/pdf']);
     }
 }

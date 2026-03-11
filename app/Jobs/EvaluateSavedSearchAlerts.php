@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class EvaluateSavedSearchAlerts implements ShouldQueue
 {
@@ -56,8 +57,17 @@ class EvaluateSavedSearchAlerts implements ShouldQueue
                         continue;
                     }
 
-                    $user->notify(new NewMatchingAnnouncement($announcement, $savedSearch));
                     $savedSearch->update(['last_notified_at' => now()]);
+
+                    try {
+                        $user->notify(new NewMatchingAnnouncement($announcement, $savedSearch));
+                    } catch (\Throwable $e) {
+                        Log::warning('Notification delivery failed for saved search '.$savedSearch->id, [
+                            'announcement_id' => $announcement->id,
+                            'user_id' => $user->id,
+                            'exception' => $e->getMessage(),
+                        ]);
+                    }
                 }
             });
     }

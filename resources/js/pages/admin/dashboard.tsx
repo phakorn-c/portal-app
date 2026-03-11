@@ -1,4 +1,4 @@
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, useForm } from '@inertiajs/react';
 import {
     Bell,
     ChevronDown,
@@ -15,7 +15,7 @@ import {
     Trash2,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,13 +30,29 @@ import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import * as announcementRoutes from '@/routes/admin/announcements';
+import * as adminRoutes from '@/routes/admin';
+import * as userRoutes from '@/routes/admin/users';
 
 type Announcement = {
     id: string;
     title: string;
+    description?: string;
     organization: string;
-    published_at: string | null;
+    method: string;
+    category: string;
     budget: number;
+    deadline: string;
+    published_at: string | null;
     status: 'open' | 'urgent' | 'closing' | 'closed';
     publication_status: 'draft' | 'published' | 'hidden';
 };
@@ -63,21 +79,235 @@ interface AdminDashboardProps {
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
+type AnnouncementModalProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    announcement?: Announcement | null;
+};
+
+function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalProps) {
+    const isEdit = !!announcement;
+
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+        _method: isEdit ? 'PUT' : 'POST',
+        title: '',
+        description: '',
+        organization: '',
+        method: 'open_tender',
+        category: 'goods',
+        budget: 0,
+        deadline: '',
+        status: 'open',
+        publication_status: 'draft',
+        attachment: null as File | null,
+    });
+
+    useEffect(() => {
+        if (isOpen) {
+            setData({
+                _method: isEdit ? 'PUT' : 'POST',
+                title: announcement?.title || '',
+                description: announcement?.description || '',
+                organization: announcement?.organization || '',
+                method: announcement?.method || 'open_tender',
+                category: announcement?.category || 'goods',
+                budget: announcement?.budget || 0,
+                deadline: announcement?.deadline ? announcement.deadline.split('T')[0].split(' ')[0] : '',
+                status: announcement?.status || 'open',
+                publication_status: announcement?.publication_status || 'draft',
+                attachment: null,
+            });
+            clearErrors();
+        }
+    }, [isOpen, announcement]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isEdit && announcement) {
+            post(announcementRoutes.update.url(announcement.id), {
+                forceFormData: true,
+                onSuccess: () => {
+                    reset();
+                    onClose();
+                },
+            });
+        } else {
+            post(announcementRoutes.store.url(), {
+                forceFormData: true,
+                onSuccess: () => {
+                    reset();
+                    onClose();
+                },
+            });
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{isEdit ? 'แก้ไขประกาศ' : 'เพิ่มประกาศใหม่'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2 col-span-2">
+                            <Label htmlFor="title">ชื่อโครงการ</Label>
+                            <Input
+                                id="title"
+                                value={data.title}
+                                onChange={(e) => setData('title', e.target.value)}
+                            />
+                            {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <Label htmlFor="description">รายละเอียด</Label>
+                            <textarea
+                                id="description"
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                value={data.description}
+                                onChange={(e) => setData('description', e.target.value)}
+                            />
+                            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="organization">หน่วยงาน</Label>
+                            <Input
+                                id="organization"
+                                value={data.organization}
+                                onChange={(e) => setData('organization', e.target.value)}
+                            />
+                            {errors.organization && <p className="text-sm text-destructive">{errors.organization}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="budget">งบประมาณ</Label>
+                            <Input
+                                id="budget"
+                                type="number"
+                                value={data.budget}
+                                onChange={(e) => setData('budget', Number(e.target.value))}
+                            />
+                            {errors.budget && <p className="text-sm text-destructive">{errors.budget}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="method">วิธีการจัดซื้อจัดจ้าง</Label>
+                            <Select value={data.method} onValueChange={(value) => setData('method', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกวิธี" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="open_tender">ประกวดราคาอิเล็กทรอนิกส์ (e-bidding)</SelectItem>
+                                    <SelectItem value="selective_tender">คัดเลือก</SelectItem>
+                                    <SelectItem value="specific_method">เฉพาะเจาะจง</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.method && <p className="text-sm text-destructive">{errors.method}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="category">หมวดหมู่</Label>
+                            <Select value={data.category} onValueChange={(value) => setData('category', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกหมวดหมู่" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="goods">ซื้อ</SelectItem>
+                                    <SelectItem value="construction">จ้างก่อสร้าง</SelectItem>
+                                    <SelectItem value="services">จ้างทำของ/จ้างเหมาบริการ</SelectItem>
+                                    <SelectItem value="consulting">จ้างที่ปรึกษา</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="deadline">วันสิ้นสุด</Label>
+                            <Input
+                                id="deadline"
+                                type="date"
+                                value={data.deadline}
+                                onChange={(e) => setData('deadline', e.target.value)}
+                            />
+                            {errors.deadline && <p className="text-sm text-destructive">{errors.deadline}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="status">สถานะ</Label>
+                            <Select value={data.status} onValueChange={(value) => setData('status', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกสถานะ" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="open">เปิดรับข้อเสนอ</SelectItem>
+                                    <SelectItem value="urgent">ด่วน</SelectItem>
+                                    <SelectItem value="closing">ใกล้ปิดรับ</SelectItem>
+                                    <SelectItem value="closed">ปิดรับแล้ว</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.status && <p className="text-sm text-destructive">{errors.status}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="publication_status">สถานะการเผยแพร่</Label>
+                            <Select value={data.publication_status} onValueChange={(value) => setData('publication_status', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกสถานะการเผยแพร่" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="draft">ร่าง</SelectItem>
+                                    <SelectItem value="published">เผยแพร่</SelectItem>
+                                    <SelectItem value="hidden">ซ่อน</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.publication_status && <p className="text-sm text-destructive">{errors.publication_status}</p>}
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <Label htmlFor="attachment">เอกสารแนบ (PDF)</Label>
+                            <Input
+                                id="attachment"
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => setData('attachment', e.target.files?.[0] || null)}
+                            />
+                            {errors.attachment && <p className="text-sm text-destructive">{errors.attachment}</p>}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose}>
+                            ยกเลิก
+                        </Button>
+                        <Button type="submit" disabled={processing}>
+                            {processing ? 'กำลังบันทึก...' : 'บันทึก'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 export default function AdminDashboard({ announcements, stats }: AdminDashboardProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+
+    const handleCreate = () => {
+        setEditingAnnouncement(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (item: Announcement) => {
+        setEditingAnnouncement(item);
+        setIsModalOpen(true);
+    };
 
     const handlePublishToggle = (item: Announcement) => {
         if (item.publication_status === 'published') {
-            router.patch(route('admin.announcements.hide', item.id));
+            router.patch(announcementRoutes.hide.url(item.id));
         } else {
-            router.patch(route('admin.announcements.publish', item.id));
+            router.patch(announcementRoutes.publish.url(item.id));
         }
     };
 
     const handleDelete = (item: Announcement) => {
         if (confirm('คุณแน่ใจหรือไม่ที่จะลบประกาศนี้?')) {
-            router.delete(route('admin.announcements.destroy', item.id));
+            router.delete(announcementRoutes.destroy.url(item.id));
         }
     };
 
@@ -169,6 +399,7 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                         size="icon"
                         className="h-8 w-8"
                         title="แก้ไข"
+                        onClick={() => handleEdit(item)}
                     >
                         <Edit2 className="h-4 w-4" />
                     </Button>
@@ -230,12 +461,12 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                         </div>
                         <div className="flex gap-2">
                             <Button asChild variant="outline" className="gap-2 shadow-sm">
-                                <Link href={route('admin.users.index')}>
+                                <Link href={userRoutes.index.url()}>
                                     <Users className="h-4 w-4" />
                                     จัดการผู้ใช้งาน
                                 </Link>
                             </Button>
-                            <Button className="gap-2 shadow-sm">
+                            <Button className="gap-2 shadow-sm" onClick={handleCreate}>
                                 <Plus className="h-4 w-4" />
                                 เพิ่มประกาศใหม่
                             </Button>
@@ -264,10 +495,7 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                                             className={`text-xs ${
                                                 stat.changeType === 'positive'
                                                     ? 'text-emerald-600'
-                                                    : stat.changeType ===
-                                                        'warning'
-                                                      ? 'text-amber-600'
-                                                      : 'text-muted-foreground'
+                                                    : 'text-muted-foreground'
                                             }`}
                                         >
                                             {stat.change}
@@ -349,7 +577,7 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                                 totalPages={announcements.last_page}
                                 onPageChange={(page) => {
                                     router.get(
-                                        route('admin.dashboard'),
+                                        adminRoutes.dashboard.url(),
                                         { page },
                                         { preserveState: true }
                                     );
@@ -359,6 +587,11 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                     </CardContent>
                 </Card>
             </div>
+            <AnnouncementModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                announcement={editingAnnouncement}
+            />
         </AppHeaderLayout>
     );
 }

@@ -21,6 +21,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Timeline, type TimelineItem } from '@/components/ui/timeline';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
+import type { FilterState } from '@/types/procurement';
 
 
 
@@ -92,6 +93,30 @@ const sidebarNav = [
 
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
+}
+function serializeCriteria(criteria: FilterState | Record<string, any>): string {
+    const params = new URLSearchParams();
+    if (criteria.query) params.set('query', criteria.query as string);
+    if ('keyword' in criteria && criteria.keyword) params.set('keyword', criteria.keyword as string);
+    if (Array.isArray(criteria.organizations)) {
+        criteria.organizations.forEach((val: string) => params.append('organization[]', val));
+    }
+    if (Array.isArray(criteria.methods)) {
+        criteria.methods.forEach((val: string) => params.append('method[]', val));
+    }
+    if (Array.isArray(criteria.categories)) {
+        criteria.categories.forEach((val: string) => params.append('category[]', val));
+    }
+    if (criteria.budgetRange?.[0] > 0) {
+        params.set('budget_min', String(criteria.budgetRange[0]));
+    }
+    if (criteria.budgetRange?.[1] > 0) {
+        params.set('budget_max', String(criteria.budgetRange[1]));
+    }
+    if (criteria.sortBy) {
+        params.set('sort', criteria.sortBy as string);
+    }
+    return params.toString();
 }
 
 export default function UserDashboard({
@@ -245,13 +270,9 @@ export default function UserDashboard({
                                                 </p>
                                                 <p
                                                     className={`mt-1 text-xs ${
-                                                        stat.changeType ===
-                                                        'positive'
+                                                        stat.changeType === 'positive'
                                                             ? 'text-emerald-600'
-                                                            : stat.changeType ===
-                                                                'warning'
-                                                              ? 'text-amber-600'
-                                                              : 'text-muted-foreground'
+                                                            : 'text-muted-foreground'
                                                     }`}
                                                 >
                                                     {stat.change}
@@ -289,7 +310,7 @@ export default function UserDashboard({
                                             {realSavedSearches.map((search) => (
                                                 <Link
                                                     key={search.label}
-                                                    href={`/procurement?${new URLSearchParams(search.criteria as any).toString()}`}
+                                                    href={`/procurement?${serializeCriteria(search.criteria)}`}
                                                     className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
                                                 >
                                                     {search.label}

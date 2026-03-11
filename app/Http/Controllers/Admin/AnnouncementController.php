@@ -92,7 +92,7 @@ class AnnouncementController extends Controller
             return;
         }
 
-        $storedFilename = $file->store('attachments', 'public');
+        $storedFilename = $file->store('attachments', 'local');
 
         $announcement->attachments()->create([
             'filename' => $file->getClientOriginalName(),
@@ -105,7 +105,7 @@ class AnnouncementController extends Controller
     protected function removeStoredFiles(Announcement $announcement): void
     {
         $announcement->attachments->each(function ($attachment): void {
-            Storage::disk('public')->delete($attachment->stored_filename);
+            Storage::disk('local')->delete($attachment->stored_filename);
         });
     }
 
