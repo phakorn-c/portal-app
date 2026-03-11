@@ -14,82 +14,15 @@ import {
     TrendingUp,
     User,
 } from 'lucide-react';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timeline, type TimelineItem } from '@/components/ui/timeline';
+import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
 
-const stats = [
-    {
-        label: 'ติดตามประกาศ',
-        value: '12',
-        change: '+3 โครงการใหม่',
-        changeType: 'positive' as const,
-        icon: Eye,
-        color: 'bg-blue-500',
-    },
-    {
-        label: 'บันทึกไว้',
-        value: '8',
-        change: '+2 สัปดาห์นี้',
-        changeType: 'positive' as const,
-        icon: Bookmark,
-        color: 'bg-emerald-500',
-    },
-    {
-        label: 'รอยื่นข้อเสนอ',
-        value: '3',
-        change: 'ใกล้กำหนด',
-        changeType: 'warning' as const,
-        icon: Clock,
-        color: 'bg-amber-500',
-    },
-    {
-        label: 'ดาวน์โหลดเอกสาร',
-        value: '24',
-        change: 'เดือนนี้',
-        changeType: 'neutral' as const,
-        icon: Download,
-        color: 'bg-violet-500',
-    },
-];
 
-const savedSearches = [
-    { label: 'ก่อสร้าง > 10 ล้าน', count: 45 },
-    { label: 'เครื่องมือแพทย์', count: 12 },
-    { label: 'IT / ครุภัณฑ์คอมพิวเตอร์', count: 28 },
-    { label: 'ที่ปรึกษา', count: 8 },
-];
-
-const recentlyViewed = [
-    {
-        id: '66107382',
-        title: 'ประกวดราคาจ้างก่อสร้างถนนคอนกรีตเสริมเหล็ก',
-        organization: 'เทศบาลนครขอนแก่น',
-        budget: 2540000,
-        status: 'open' as const,
-        viewedAt: 'เมื่อ 2 ชั่วโมงก่อน',
-    },
-    {
-        id: '66109221',
-        title: 'ซื้อครุภัณฑ์การแพทย์สำหรับโรงพยาบาลขอนแก่น',
-        organization: 'สำนักงานสาธารณสุขจังหวัด',
-        budget: 15000000,
-        status: 'urgent' as const,
-        viewedAt: 'เมื่อ 5 ชั่วโมงก่อน',
-    },
-    {
-        id: '66101104',
-        title: 'จ้างปรับปรุงอาคารเรียน Smart Classroom',
-        organization: 'มหาวิทยาลัยขอนแก่น',
-        budget: 8450000,
-        status: 'open' as const,
-        viewedAt: 'เมื่อวานนี้',
-    },
-];
 
 const activityTimeline: TimelineItem[] = [
     {
@@ -161,10 +94,78 @@ function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
 
-export default function UserDashboard() {
+export default function UserDashboard({
+    savedSearchCount,
+    recentSavedSearches,
+    listingHistory,
+    searchHistoryCount,
+}: {
+    savedSearchCount: number;
+    recentSavedSearches: any[];
+    listingHistory: any[];
+    searchHistoryCount: number;
+}) {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
 
+    // Map real data to stats
+    const realStats = [
+        {
+            label: 'ติดตามประกาศ',
+            value: listingHistory.length.toString(),
+            change: 'ดูล่าสุด',
+            changeType: 'neutral' as const,
+            icon: Eye,
+            color: 'bg-blue-500',
+        },
+        {
+            label: 'บันทึกไว้',
+            value: savedSearchCount.toString(),
+            change: 'การค้นหา',
+            changeType: 'positive' as const,
+            icon: Bookmark,
+            color: 'bg-emerald-500',
+        },
+        {
+            label: 'ประวัติการค้นหา',
+            value: searchHistoryCount.toString(),
+            change: 'ครั้ง',
+            changeType: 'neutral' as const,
+            icon: History,
+            color: 'bg-amber-500',
+        },
+        {
+            label: 'ดาวน์โหลดเอกสาร',
+            value: '0',
+            change: 'เดือนนี้',
+            changeType: 'neutral' as const,
+            icon: Download,
+            color: 'bg-violet-500',
+        },
+    ];
+
+    // Map real data to recently viewed
+    const realRecentlyViewed = listingHistory.map((history) => ({
+        id: history.announcement.id,
+        title: history.announcement.title,
+        organization: history.announcement.organization,
+        budget: history.announcement.budget,
+        status: history.announcement.status,
+        viewedAt: new Date(history.viewed_at).toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }),
+    }));
+
+    // Map real data to saved searches
+    const realSavedSearches = recentSavedSearches.map((search) => ({
+        label: search.name,
+        count: 0, // We don't have a count of results for saved searches easily available here
+        criteria: search.criteria,
+    }));
     return (
         <AppHeaderLayout>
             <Head title="แผงควบคุมผู้ใช้งาน" />
@@ -228,7 +229,7 @@ export default function UserDashboard() {
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            {stats.map((stat) => (
+                            {realStats.map((stat) => (
                                 <Card
                                     key={stat.label}
                                     className="relative overflow-hidden"
@@ -285,21 +286,18 @@ export default function UserDashboard() {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="flex flex-wrap gap-2">
-                                            {savedSearches.map((search) => (
+                                            {realSavedSearches.map((search) => (
                                                 <Link
                                                     key={search.label}
-                                                    href="/procurement"
+                                                    href={`/procurement?${new URLSearchParams(search.criteria as any).toString()}`}
                                                     className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
                                                 >
                                                     {search.label}
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className="ml-1 h-5 min-w-5 justify-center rounded-full px-1.5 text-xs"
-                                                    >
-                                                        {search.count}
-                                                    </Badge>
                                                 </Link>
                                             ))}
+                                            {realSavedSearches.length === 0 && (
+                                                <p className="text-sm text-muted-foreground">ยังไม่มีการค้นหาที่บันทึกไว้</p>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -317,7 +315,7 @@ export default function UserDashboard() {
                                         </Link>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        {recentlyViewed.map((item) => (
+                                        {realRecentlyViewed.map((item) => (
                                             <Link
                                                 key={item.id}
                                                 href={`/procurement/announcements/${item.id}`}
@@ -348,6 +346,9 @@ export default function UserDashboard() {
                                                 <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
                                             </Link>
                                         ))}
+                                        {realRecentlyViewed.length === 0 && (
+                                            <p className="text-sm text-muted-foreground">ยังไม่มีประวัติการเข้าชม</p>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
