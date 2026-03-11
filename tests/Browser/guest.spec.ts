@@ -87,4 +87,8 @@ test('guest can search procurement and open an announcement detail page', async 
     await expect(
         page.getByText('รายละเอียดประกาศจัดซื้อจัดจ้าง'),
     ).toBeVisible();
+    await expect(page.locator('button:has(svg.lucide-bookmark)')).toHaveCount(
+        0,
+    );
+    await expect(page.getByRole('button', { name: 'บันทึก' })).toHaveCount(0);
 });

@@ -2,7 +2,6 @@ import { Head, router, Link, useForm } from '@inertiajs/react';
 import {
     Bell,
     ChevronDown,
-    Download,
     Edit2,
     Eye,
     EyeOff,
@@ -550,10 +549,6 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            <Button variant="outline" className="gap-2">
-                                <Download className="h-4 w-4" />
-                                ส่งออก
-                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>

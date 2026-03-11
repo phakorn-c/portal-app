@@ -116,3 +116,43 @@ test('registered user cannot access the admin dashboard', async ({ page }) => {
         page.locator('[data-test="nav-admin-link"]:visible'),
     ).toHaveCount(0);
 });
+
+test('admin can toggle announcement publication and change user role', async ({
+    page,
+}) => {
+    resetDatabase();
+    createAdminFixtures();
+
+    await loginAs(page, 'admin@example.com', 'password');
+
+    await page.goto('/admin');
+    await expect(
+        page.locator('[data-test="admin-announcement-row"]').first(),
+    ).toBeVisible();
+
+    const publishBtn = page
+        .locator('[data-test="admin-announcement-publish"]')
+        .first();
+    await publishBtn.click();
+    await expect(
+        page.locator('[data-test="admin-announcement-row"]').first(),
+    ).toBeVisible({ timeout: 5000 });
+
+    await page.click('button:has-text("เพิ่มประกาศใหม่")');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.click('button:has-text("ยกเลิก")');
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+
+    await page.goto('/admin/users');
+    const roleSelect = page
+        .locator('[data-test="admin-user-role-select"]')
+        .first();
+    await expect(roleSelect).toBeVisible();
+    const currentValue = await roleSelect.inputValue();
+    if (currentValue === 'registered') {
+        await roleSelect.selectOption('admin');
+    } else {
+        await roleSelect.selectOption('registered');
+    }
+    await expect(page).toHaveURL(/\/admin\/users/);
+});

@@ -151,3 +151,28 @@ test('registered user sees member navigation and can open saved searches and his
         'ยังไม่มีประวัติการค้นหา',
     ]);
 });
+
+test('registered user can view saved searches and toggle notification settings', async ({
+    page,
+}) => {
+    resetDatabase();
+    createUserFixtures();
+
+    await loginAs(page, 'test@example.com', 'password');
+
+    await page.goto('/user/saved-searches');
+    await expect(
+        page.locator('[data-test="saved-search-row"]').first(),
+    ).toBeVisible();
+
+    await page.goto('/user/notifications');
+    const emailSwitch = page.locator(
+        '[data-test="notification-channel-email"]',
+    );
+    await expect(emailSwitch).toBeVisible();
+
+    await emailSwitch.click();
+    await expect(page).toHaveURL(/\/user\/notifications/);
+
+    await emailSwitch.click();
+});
