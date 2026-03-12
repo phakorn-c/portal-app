@@ -2,454 +2,204 @@
 
 ## Khon Kaen Procurement Documents Portal
 
-This diagram illustrates the main classes, their attributes, methods, and relationships.
+This version is optimized for A4 print: fewer classes, thicker borders, and only high-value relationships from the current codebase.
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{
+  'fontSize':'18px',
+  'fontFamily':'Arial',
+  'primaryColor':'#ffffff',
+  'primaryTextColor':'#111111',
+  'primaryBorderColor':'#111111',
+  'lineColor':'#111111'
+}}}%%
 classDiagram
-    %% ==========================================
-    %% CORE DOMAIN MODELS
-    %% ==========================================
+    direction TB
 
+    %% =============================
+    %% CORE MODELS (ACTIVE)
+    %% =============================
     class User {
         +int id
         +string name
         +string email
-        +string password
-        +string avatar
-        +datetime email_verified_at
-        +string two_factor_secret
-        +string two_factor_recovery_codes
-        +datetime two_factor_confirmed_at
-        +string remember_token
-        +datetime created_at
-        +datetime updated_at
-        +fill(data) void
-        +save() bool
-        +delete() bool
-        +isDirty(field) bool
-        +sendEmailVerificationNotification() void
-        +hasVerifiedEmail() bool
+        +string role
+        +isAdmin() bool
     }
 
     class Announcement {
-        +string id
+        +int id
         +string title
         +string organization
-        +string category
-        +string method
         +number budget
-        +string location
-        +string publishedAt
-        +string deadline
-        +AnnouncementStatus status
-        +string contactName
-        +string contactPhone
-        +number referencePrice
-        +string description
+        +string status
+        +string publication_status
+        +scopePublished() Builder
     }
 
     class AnnouncementAttachment {
-        +string id
-        +string name
-        +AttachmentType type
-        +string size
-        +string url
-    }
-
-    class Organization {
-        +string id
-        +string name
-        +string shortName
-        +OrganizationType type
-    }
-
-    class ProcurementMethod {
-        +string id
-        +string name
-        +string code
-    }
-
-    %% ==========================================
-    %% USER FEATURES
-    %% ==========================================
-
-    class Alert {
-        +string|number id
-        +string name
-        +string criteria
-        +string organizationName
-        +string workType
-        +number minBudget
-        +string location
-        +string color
-        +boolean enabled
-        +string createdAt
-    }
-
-    class NotificationChannel {
-        +string id
-        +NotificationChannelType type
-        +boolean enabled
-        +boolean isPro
+        +int id
+        +int announcement_id
+        +string filename
+        +string stored_filename
+        +int file_size
     }
 
     class SavedSearch {
-        +string id
-        +string label
-        +string query
-        +SearchFilters filters
-        +number resultCount
-        +string createdAt
+        +int id
+        +int user_id
+        +string name
+        +array criteria
+        +bool alert_enabled
+        +datetime last_notified_at
     }
 
-    class SearchFilters {
-        +string[] organizations
-        +string[] methods
-        +string[] categories
-        +number budgetMin
-        +number budgetMax
+    class NotificationPreference {
+        +int id
+        +int user_id
+        +bool website_enabled
+        +bool email_enabled
     }
 
-    class ActivityItem {
-        +string id
-        +ActivityType type
-        +string title
-        +string description
-        +string timestamp
-        +string relatedId
+    class SearchHistory {
+        +int id
+        +int user_id
+        +array criteria
+        +int result_count
+        +datetime searched_at
     }
 
-    class UserStats {
-        +number activeTracking
-        +number savedProjects
-        +number pendingSubmissions
-        +number downloads
+    class ListingHistory {
+        +int id
+        +int user_id
+        +int announcement_id
+        +datetime viewed_at
     }
 
-    class AdminStats {
-        +number openAnnouncements
-        +number pendingReview
-        +number expired
-    }
-
-    %% ==========================================
-    %% FILTER & PAGINATION
-    %% ==========================================
-
+    %% =============================
+    %% SUPPORT / ASYNC FLOW
+    %% =============================
     class FilterState {
-        +string query
-        +number[] budgetRange
-        +string[] organizations
-        +string[] methods
-        +string[] categories
-        +SortBy sortBy
+        +defaults() array
+        +validationRules() array
+        +normalize(criteria) array
     }
 
-    class PaginationMeta {
-        +number currentPage
-        +number totalPages
-        +number totalItems
-        +number itemsPerPage
+    class AnnouncementSearch {
+        +apply(criteria) Builder
+        -applySort(query, sortBy) void
     }
 
-    %% ==========================================
-    %% AUTH & SETTINGS
-    %% ==========================================
-
-    class Auth {
-        +User user
+    class EvaluateSavedSearchAlerts {
+        +__construct(announcement)
+        +handle(search) void
     }
 
-    class TwoFactorSetupData {
-        +string svg
-        +string url
+    class NewMatchingAnnouncement {
+        +__construct(announcement, savedSearch)
+        +via(notifiable) array
+        +toDatabase() array
+        +toMail() MailMessage
     }
 
-    class TwoFactorSecretKey {
-        +string secretKey
+    %% =============================
+    %% KEY CONTROLLERS (ENTRY POINTS)
+    %% =============================
+    class ProcurementSearchController {
+        +index(request) Response
+        -normalizedCriteriaFromRequest() array
+        -storeSearchHistory() void
     }
 
-    class TimelineItem {
-        +string date
-        +string title
-        +string description
-        +TimelineStatus status
+    class AdminAnnouncementController {
+        +store(request) JsonResponse
+        +update(request, announcement) JsonResponse
+        +publish(announcement) JsonResponse
     }
 
-    %% ==========================================
-    %% ENUMERATIONS
-    %% ==========================================
-
-    class AnnouncementStatus {
-        <<enumeration>>
-        open
-        urgent
-        closing
-        closed
+    class UserNotificationController {
+        +index(request) Response
+        +markRead(request, notification) RedirectResponse
     }
 
-    class AttachmentType {
-        <<enumeration>>
-        PDF
-        ZIP
-        DOC
-        XLS
-    }
-
-    class OrganizationType {
-        <<enumeration>>
-        government
-        municipality
-        university
-        hospital
-        other
-    }
-
-    class NotificationChannelType {
-        <<enumeration>>
-        email
-        in-app
-        sms
-    }
-
-    class ActivityType {
-        <<enumeration>>
-        view
-        download
-        save
-        alert
-    }
-
-    class SortBy {
-        <<enumeration>>
-        latest
-        budget-high
-        budget-low
-        deadline
-    }
-
-    class TimelineStatus {
-        <<enumeration>>
-        completed
-        current
-        upcoming
-    }
-
-    %% ==========================================
-    %% CONTROLLERS (Backend - Laravel)
-    %% ==========================================
-
-    class Controller {
-        <<abstract>>
-    }
-
-    class ProfileController {
-        +edit(request) Response
-        +update(request) RedirectResponse
-        +destroy(request) RedirectResponse
-    }
-
-    class PasswordController {
-        +edit(request) Response
-        +update(request) RedirectResponse
-    }
-
-    class TwoFactorAuthenticationController {
-        +show(request) Response
-        +store(request) Response
-        +destroy(request) RedirectResponse
-    }
-
-    %% ==========================================
-    %% REQUEST VALIDATORS (Backend - Laravel)
-    %% ==========================================
-
-    class ProfileUpdateRequest {
-        +rules() array
-        +authorize() bool
-    }
-
-    class ProfileDeleteRequest {
-        +rules() array
-        +authorize() bool
-    }
-
-    class PasswordUpdateRequest {
-        +rules() array
-        +authorize() bool
-    }
-
-    class TwoFactorAuthenticationRequest {
-        +rules() array
-        +authorize() bool
-    }
-
-    %% ==========================================
-    %% MIDDLEWARE (Backend - Laravel)
-    %% ==========================================
-
-    class HandleInertiaRequests {
-        +share(request) array
-        +version() string
-    }
-
-    class HandleAppearance {
-        +handle(request, next) Response
-    }
-
-    %% ==========================================
-    %% FRONTEND COMPONENTS (React)
-    %% ==========================================
-
-    class AppLayout {
-        +children ReactNode
-        +render() JSX
-    }
-
-    class AuthLayout {
-        +children ReactNode
-        +render() JSX
-    }
-
-    class AppSidebar {
-        +navItems NavItem[]
-        +render() JSX
-    }
-
-    class AppHeader {
-        +user User
-        +render() JSX
-    }
-
-    class DataTable {
-        +data T[]
-        +columns Column[]
-        +emptyMessage string
-        +render() JSX
-    }
-
-    class StatusBadge {
-        +status AnnouncementStatus
-        +render() JSX
-    }
-
-    class Timeline {
-        +items TimelineItem[]
-        +render() JSX
-    }
-
-    class Pagination {
-        +currentPage number
-        +totalPages number
-        +onPageChange function
-        +render() JSX
-    }
-
-    %% ==========================================
+    %% =============================
     %% RELATIONSHIPS
-    %% ==========================================
-
-    %% Domain relationships
+    %% =============================
     User "1" --> "*" SavedSearch : has
-    User "1" --> "*" Alert : configures
-    User "1" --> "*" ActivityItem : performs
-    User "1" --> "1" UserStats : has
+    User "1" --> "1" NotificationPreference : has
+    User "1" --> "*" SearchHistory : has
+    User "1" --> "*" ListingHistory : has
 
-    Announcement "1" --> "*" AnnouncementAttachment : contains
-    Announcement "*" --> "1" Organization : belongs to
-    Announcement "*" --> "1" ProcurementMethod : uses
-    Announcement --> AnnouncementStatus : has status
+    Announcement "1" --> "*" AnnouncementAttachment : has
+    Announcement "1" --> "*" ListingHistory : tracked in
 
-    AnnouncementAttachment --> AttachmentType : has type
-    Organization --> OrganizationType : has type
+    SavedSearch --> FilterState : criteria
+    ProcurementSearchController ..> FilterState : validates
+    ProcurementSearchController ..> AnnouncementSearch : uses
+    ProcurementSearchController ..> SearchHistory : writes
 
-    Alert "1" --> "*" NotificationChannel : notifies via
-    NotificationChannel --> NotificationChannelType : has type
+    AdminAnnouncementController ..> Announcement : manages
+    AdminAnnouncementController ..> EvaluateSavedSearchAlerts : dispatches
 
-    SavedSearch "1" --> "1" SearchFilters : contains
+    EvaluateSavedSearchAlerts ..> SavedSearch : evaluates
+    EvaluateSavedSearchAlerts ..> AnnouncementSearch : reuses filters
+    EvaluateSavedSearchAlerts ..> NewMatchingAnnouncement : sends
 
-    FilterState --> SortBy : uses
+    UserNotificationController ..> NotificationPreference : reads
+    UserNotificationController ..> SavedSearch : reads alerts
 
-    ActivityItem --> ActivityType : has type
-    TimelineItem --> TimelineStatus : has status
+    NewMatchingAnnouncement ..> Announcement : embeds data
+    NewMatchingAnnouncement ..> SavedSearch : embeds data
 
-    %% Controller relationships
-    Controller <|-- ProfileController
-    Controller <|-- PasswordController
-    Controller <|-- TwoFactorAuthenticationController
+    classDef core fill:#ffffff,stroke:#111111,stroke-width:2px,color:#111111
+    classDef flow fill:#f8f8f8,stroke:#111111,stroke-width:2px,color:#111111
+    classDef ctrl fill:#ffffff,stroke:#111111,stroke-width:2px,color:#111111
 
-    ProfileController ..> ProfileUpdateRequest : validates with
-    ProfileController ..> ProfileDeleteRequest : validates with
-    ProfileController ..> User : manages
-
-    PasswordController ..> PasswordUpdateRequest : validates with
-    PasswordController ..> User : updates
-
-    TwoFactorAuthenticationController ..> TwoFactorAuthenticationRequest : validates with
-    TwoFactorAuthenticationController ..> TwoFactorSetupData : returns
-    TwoFactorAuthenticationController ..> User : configures
-
-    %% Auth relationships
-    Auth --> User : contains
-
-    %% Layout relationships
-    AppLayout --> AppSidebar : contains
-    AppLayout --> AppHeader : contains
-
-    %% Component relationships
-    DataTable --> Pagination : uses
-    DataTable --> StatusBadge : displays
+    class User,Announcement,AnnouncementAttachment,SavedSearch,NotificationPreference,SearchHistory,ListingHistory core
+    class FilterState,AnnouncementSearch,EvaluateSavedSearchAlerts,NewMatchingAnnouncement flow
+    class ProcurementSearchController,AdminAnnouncementController,UserNotificationController ctrl
 ```
 
-## Class Categories
+## Included Classes (A4 Compact Set)
 
-### 1. Core Domain Models (โมเดลหลัก)
+| Layer      | Class                         | Why Included                                |
+| ---------- | ----------------------------- | ------------------------------------------- |
+| Model      | `User`                        | Central identity and ownership of user data |
+| Model      | `Announcement`                | Core procurement record                     |
+| Model      | `AnnouncementAttachment`      | Official document linkage                   |
+| Model      | `SavedSearch`                 | Alert source and user intent                |
+| Model      | `NotificationPreference`      | Delivery channel settings                   |
+| Model      | `SearchHistory`               | Search activity tracking                    |
+| Model      | `ListingHistory`              | View/download activity tracking             |
+| Support    | `FilterState`                 | Shared filter schema and normalization      |
+| Support    | `AnnouncementSearch`          | Reusable query/filter engine                |
+| Async      | `EvaluateSavedSearchAlerts`   | Match-and-notify workflow                   |
+| Async      | `NewMatchingAnnouncement`     | Notification payload/channel logic          |
+| Controller | `ProcurementSearchController` | Public search entry point                   |
+| Controller | `AdminAnnouncementController` | Announcement publish lifecycle              |
+| Controller | `UserNotificationController`  | User notification UI endpoint               |
 
-| Class                    | Description (Thai)                                 | Description (English)                                  |
-| ------------------------ | -------------------------------------------------- | ------------------------------------------------------ |
-| `User`                   | ข้อมูลผู้ใช้งานระบบ รวมถึงการยืนยันตัวตนแบบสองชั้น | User account data including two-factor authentication  |
-| `Announcement`           | ประกาศจัดซื้อจัดจ้าง                               | Procurement announcement                               |
-| `AnnouncementAttachment` | เอกสารแนบประกาศ                                    | Announcement attachments (PDF, ZIP, etc.)              |
-| `Organization`           | หน่วยงานที่ประกาศจัดซื้อจัดจ้าง                    | Government organization posting announcements          |
-| `ProcurementMethod`      | วิธีการจัดซื้อจัดจ้าง                              | Procurement method (e-Bidding, Direct Selection, etc.) |
+## Excluded on Purpose (To Keep Diagram Readable)
 
-### 2. User Features (ฟีเจอร์ผู้ใช้)
+| Item                                                                                                                     | Reason                                                             |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Legacy/fictional classes from old diagram (`Organization`, `ProcurementMethod`, `Alert`, `ActivityItem`, `TimelineItem`) | Not modeled as backend classes in current code                     |
+| Most settings/auth controllers and request validators                                                                    | Kept out to avoid crowding A4 with repetitive CRUD/validation flow |
+| Frontend UI atoms/components                                                                                             | Better shown in component-level diagram, not core class map        |
 
-| Class                 | Description (Thai)                       | Description (English)            |
-| --------------------- | ---------------------------------------- | -------------------------------- |
-| `Alert`               | เงื่อนไขการแจ้งเตือนที่ผู้ใช้ตั้งค่า     | User-configured alert conditions |
-| `NotificationChannel` | ช่องทางการแจ้งเตือน (อีเมล, ในระบบ, SMS) | Notification delivery channels   |
-| `SavedSearch`         | การค้นหาที่บันทึกไว้                     | Saved search queries             |
-| `SearchFilters`       | ตัวกรองการค้นหา                          | Search filter parameters         |
-| `ActivityItem`        | กิจกรรมของผู้ใช้                         | User activity log items          |
-| `UserStats`           | สถิติผู้ใช้งาน                           | User statistics                  |
-| `AdminStats`          | สถิติผู้ดูแลระบบ                         | Administrator statistics         |
+## Source of Truth Used
 
-### 3. Backend Controllers (คอนโทรลเลอร์ฝั่ง Backend)
-
-| Class                               | Description (Thai)          | Description (English)              |
-| ----------------------------------- | --------------------------- | ---------------------------------- |
-| `ProfileController`                 | จัดการโปรไฟล์ผู้ใช้         | Manages user profile CRUD          |
-| `PasswordController`                | จัดการรหัสผ่าน              | Manages password updates           |
-| `TwoFactorAuthenticationController` | จัดการการยืนยันตัวตนสองชั้น | Manages 2FA setup and verification |
-
-### 4. Frontend Components (คอมโพเนนต์ฝั่ง Frontend)
-
-| Class         | Description (Thai)          | Description (English)             |
-| ------------- | --------------------------- | --------------------------------- |
-| `AppLayout`   | เลย์เอาต์หลักของแอปพลิเคชัน | Main application layout           |
-| `DataTable`   | ตารางแสดงข้อมูล             | Data table component              |
-| `StatusBadge` | แสดงสถานะประกาศ             | Announcement status indicator     |
-| `Timeline`    | แสดงไทม์ไลน์กิจกรรม         | Timeline component for activities |
-| `Pagination`  | แบ่งหน้าข้อมูล              | Pagination component              |
-
-### 5. Enumerations (ค่าคงที่)
-
-| Enum                      | Values                                                | Description       |
-| ------------------------- | ----------------------------------------------------- | ----------------- |
-| `AnnouncementStatus`      | open, urgent, closing, closed                         | สถานะประกาศ       |
-| `AttachmentType`          | PDF, ZIP, DOC, XLS                                    | ประเภทไฟล์แนบ     |
-| `OrganizationType`        | government, municipality, university, hospital, other | ประเภทหน่วยงาน    |
-| `NotificationChannelType` | email, in-app, sms                                    | ช่องทางแจ้งเตือน  |
-| `ActivityType`            | view, download, save, alert                           | ประเภทกิจกรรม     |
-| `SortBy`                  | latest, budget-high, budget-low, deadline             | วิธีการเรียงลำดับ |
+- `app/Models/User.php`
+- `app/Models/Announcement.php`
+- `app/Models/AnnouncementAttachment.php`
+- `app/Models/SavedSearch.php`
+- `app/Models/NotificationPreference.php`
+- `app/Models/SearchHistory.php`
+- `app/Models/ListingHistory.php`
+- `app/Support/Procurement/FilterState.php`
+- `app/Support/Procurement/AnnouncementSearch.php`
+- `app/Jobs/EvaluateSavedSearchAlerts.php`
+- `app/Notifications/NewMatchingAnnouncement.php`
+- `app/Http/Controllers/Procurement/SearchController.php`
+- `app/Http/Controllers/Admin/AnnouncementController.php`
+- `app/Http/Controllers/User/NotificationController.php`
