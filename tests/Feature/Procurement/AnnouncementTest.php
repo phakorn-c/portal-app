@@ -15,7 +15,7 @@ use function Pest\Laravel\patchJson;
 use function Pest\Laravel\postJson;
 
 test('admin can create announcement without attachment', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     actingAs($user);
 
     $response = postJson(route('admin.announcements.store'), announcementPayload());
@@ -32,7 +32,7 @@ test('admin can create announcement without attachment', function () {
 test('admin can create announcement with pdf attachment', function () {
     Storage::fake('public');
 
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     actingAs($user);
 
     $response = postJson(route('admin.announcements.store'), [
@@ -54,7 +54,7 @@ test('admin can create announcement with pdf attachment', function () {
 test('non-pdf upload is rejected', function () {
     Storage::fake('public');
 
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     actingAs($user);
 
     $response = postJson(route('admin.announcements.store'), [
@@ -69,7 +69,7 @@ test('non-pdf upload is rejected', function () {
 });
 
 test('admin can publish an announcement', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     actingAs($user);
 
     $announcement = Announcement::factory()->draft()->create();
@@ -84,7 +84,7 @@ test('admin can publish an announcement', function () {
 });
 
 test('admin can hide an announcement', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     actingAs($user);
 
     $announcement = Announcement::factory()->published()->create();
@@ -100,7 +100,7 @@ test('admin can hide an announcement', function () {
 test('admin can delete announcement and stored files are cleaned up', function () {
     Storage::fake('public');
 
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     actingAs($user);
 
     $announcement = Announcement::factory()->create();

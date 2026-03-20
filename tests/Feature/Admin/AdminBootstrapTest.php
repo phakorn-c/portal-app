@@ -12,8 +12,16 @@ use function Pest\Laravel\seed;
 
 uses(RefreshDatabase::class);
 
-test('database seeder creates a default admin account', function () {
-    seed();
+test('admin is created from environment configuration on boot', function () {
+    config([
+        'admin.email' => 'admin@example.com',
+        'admin.password' => 'password',
+        'admin.first_name' => 'System',
+        'admin.last_name' => 'Administrator',
+    ]);
+
+    // Trigger the boot service manually since config was set after boot
+    \App\Support\Admin\EnsureConfiguredAdminExists::handle();
 
     $admin = User::query()->where('email', 'admin@example.com')->first();
 
