@@ -50,6 +50,14 @@ class ShowController extends Controller
                         'announcement' => $announcement->id,
                         'attachment' => $attachment->id,
                     ]),
+                    'preview_url' => route('procurement.pdf', [
+                        'announcement' => $announcement->id,
+                        'attachment' => $attachment->id,
+                    ]),
+                    'download_url' => route('procurement.pdf.download', [
+                        'announcement' => $announcement->id,
+                        'attachment' => $attachment->id,
+                    ]),
                 ]),
             ],
         ]);

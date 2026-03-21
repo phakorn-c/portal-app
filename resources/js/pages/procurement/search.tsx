@@ -77,6 +77,18 @@ function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
 
+function formatDate(value: string): string {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString('th-TH', {
+        timeZone: 'Asia/Bangkok',
+    });
+}
+
 function parseBudget(value: number | string): number {
     if (typeof value === 'number') {
         return value;
@@ -591,7 +603,7 @@ export default function ProcurementSearch() {
                                                     </p>
                                                     <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                                                         <CalendarDays className="h-4 w-4" />
-                                                        {announcement.deadline}
+                                                        {formatDate(announcement.deadline)}
                                                     </p>
                                                 </div>
                                             </div>

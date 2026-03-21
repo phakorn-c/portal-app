@@ -22,6 +22,7 @@ Route::get('procurement', [SearchController::class, 'index'])->name('procurement
 
 Route::get('procurement/announcements/{announcement}', [ShowController::class, 'show'])->name('procurement.show');
 Route::get('procurement/announcements/{announcement}/pdf/{attachment}', [PdfController::class, 'show'])->name('procurement.pdf');
+Route::get('procurement/announcements/{announcement}/pdf/{attachment}/download', [PdfController::class, 'download'])->name('procurement.pdf.download');
 
 Route::get('admin', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->middleware(['auth', 'verified', 'role:admin'])->name('admin.dashboard');
 

@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FileText, Folder, LayoutGrid, Shield, Bookmark, History, Bell } from 'lucide-react';
-import { NavFooter } from '@/components/nav-footer';
+import { FileText, LayoutGrid, Shield, Bookmark, History, Bell } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -14,21 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
-import AppLogo from './app-logo';
 
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
 
 export function AppSidebar() {
     const page = usePage<SharedData>();
@@ -58,7 +43,7 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href={dashboard()} prefetch>
-                                <AppLogo />
+                                <span className="text-lg font-bold">{page.props.name}</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -70,7 +55,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

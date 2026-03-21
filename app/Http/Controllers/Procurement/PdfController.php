@@ -14,6 +14,27 @@ class PdfController extends Controller
 {
     public function show(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): StreamedResponse
     {
+        $this->assertCanAccessAttachment($request, $announcement, $attachment);
+
+        return response()->stream(function () use ($attachment): void {
+            $this->streamAttachment($attachment);
+        }, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $attachment->filename),
+        ]);
+    }
+
+    public function download(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): StreamedResponse
+    {
+        $this->assertCanAccessAttachment($request, $announcement, $attachment);
+
+        return response()->streamDownload(function () use ($attachment): void {
+            $this->streamAttachment($attachment);
+        }, $attachment->filename, ['Content-Type' => 'application/pdf']);
+    }
+
+    private function assertCanAccessAttachment(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): void
+    {
         if ($announcement->publication_status !== 'published') {
             abort(404);
         }
@@ -36,14 +57,15 @@ class PdfController extends Controller
         if (! Storage::disk('local')->exists($attachment->stored_filename)) {
             abort(404);
         }
+    }
 
-        return response()->streamDownload(function () use ($attachment): void {
-            $stream = Storage::disk('local')->readStream($attachment->stored_filename);
+    private function streamAttachment(AnnouncementAttachment $attachment): void
+    {
+        $stream = Storage::disk('local')->readStream($attachment->stored_filename);
 
-            if (is_resource($stream)) {
-                fpassthru($stream);
-                fclose($stream);
-            }
-        }, $attachment->filename, ['Content-Type' => 'application/pdf']);
+        if (is_resource($stream)) {
+            fpassthru($stream);
+            fclose($stream);
+        }
     }
 }

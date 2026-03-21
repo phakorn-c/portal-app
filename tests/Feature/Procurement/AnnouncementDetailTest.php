@@ -39,7 +39,7 @@ test('returns 404 for hidden announcement', function () {
 
 test('creates listing history for authenticated verified user', function () {
     $announcement = Announcement::factory()->published()->create();
-    $user = User::factory()->create();
+    $user = User::query()->findOrFail(User::factory()->createOne()->getKey());
     actingAs($user);
 
     $response = get(route('procurement.show', $announcement));
@@ -63,7 +63,7 @@ test('does not create listing history for guests', function () {
 });
 
 test('serves pdf for published announcement', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $announcement = Announcement::factory()->published()->create();
     $attachment = AnnouncementAttachment::factory()->create([
@@ -71,7 +71,7 @@ test('serves pdf for published announcement', function () {
         'filename' => 'published.pdf',
         'stored_filename' => 'attachments/published.pdf',
     ]);
-    Storage::disk('public')->put($attachment->stored_filename, 'pdf-content');
+    Storage::disk('local')->put($attachment->stored_filename, 'pdf-content');
 
     $response = get(route('procurement.pdf', [
         'announcement' => $announcement,
@@ -80,17 +80,39 @@ test('serves pdf for published announcement', function () {
 
     $response->assertOk();
     $response->assertHeader('content-type', 'application/pdf');
+    $response->assertHeader('content-disposition', 'inline; filename="published.pdf"');
+});
+
+test('downloads pdf from explicit download endpoint', function () {
+    Storage::fake('local');
+
+    $announcement = Announcement::factory()->published()->create();
+    $attachment = AnnouncementAttachment::factory()->create([
+        'announcement_id' => $announcement->id,
+        'filename' => 'downloadable.pdf',
+        'stored_filename' => 'attachments/downloadable.pdf',
+    ]);
+    Storage::disk('local')->put($attachment->stored_filename, 'pdf-content');
+
+    $response = get(route('procurement.pdf.download', [
+        'announcement' => $announcement,
+        'attachment' => $attachment,
+    ]));
+
+    $response->assertOk();
+    $response->assertHeader('content-type', 'application/pdf');
+    $response->assertHeader('content-disposition', 'attachment; filename=downloadable.pdf');
 });
 
 test('returns 404 pdf for draft announcement', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $announcement = Announcement::factory()->draft()->create();
     $attachment = AnnouncementAttachment::factory()->create([
         'announcement_id' => $announcement->id,
         'stored_filename' => 'attachments/draft.pdf',
     ]);
-    Storage::disk('public')->put($attachment->stored_filename, 'pdf-content');
+    Storage::disk('local')->put($attachment->stored_filename, 'pdf-content');
 
     $response = get(route('procurement.pdf', [
         'announcement' => $announcement,

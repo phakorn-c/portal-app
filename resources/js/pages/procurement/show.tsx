@@ -19,6 +19,8 @@ type Attachment = {
     id: number;
     filename: string;
     url: string;
+    preview_url: string;
+    download_url: string;
 };
 
 type AnnouncementDetail = {
@@ -50,7 +52,7 @@ function formatDate(value: string | null): string {
         return value;
     }
 
-    return date.toLocaleDateString('th-TH');
+    return date.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
 }
 
 function formatBudget(value: number | string): string {
@@ -140,11 +142,11 @@ export default function ProcurementAnnouncement() {
                         </Button>
                         {primaryAttachment ? (
                             <Button className="gap-2 shadow-sm" asChild>
-                                <a
-                                    href={primaryAttachment.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
+                                    <a
+                                        href={primaryAttachment.download_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
                                     <Download className="h-4 w-4" />
                                     ดาวน์โหลดเอกสาร PDF
                                 </a>
@@ -247,7 +249,7 @@ export default function ProcurementAnnouncement() {
                         </div>
 
                         <div className="group relative flex h-[600px] flex-col overflow-hidden rounded-xl border border-border bg-[#525659] shadow-lg">
-                            <div className="flex h-12 items-center justify-between border-b border-[#404447] bg-[#323639] px-4">
+                            <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#404447] bg-[#323639] px-4">
                                 <div className="flex items-center gap-4 text-gray-300">
                                     <Menu className="h-5 w-5" />
                                     <span className="max-w-[260px] truncate text-sm font-medium">
@@ -258,15 +260,19 @@ export default function ProcurementAnnouncement() {
                                 <Badge variant="secondary">PDF</Badge>
                             </div>
 
-                            <div className="custom-scrollbar flex flex-1 justify-center overflow-y-auto bg-[#525659] p-8">
+                            <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#525659] p-4">
                                 {primaryAttachment ? (
                                     <iframe
-                                        src={primaryAttachment.url}
+                                        src={primaryAttachment.preview_url}
                                         title={primaryAttachment.filename}
-                                        className="h-full min-h-[520px] w-full max-w-[920px] rounded-md bg-white"
+                                        className="h-full w-full rounded-md bg-white"
+                                        style={{
+                                            maxWidth: '100%',
+                                            maxHeight: '100%',
+                                        }}
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full max-w-[920px] items-center justify-center rounded-md bg-white p-12 text-center text-muted-foreground">
+                                    <div className="flex h-full w-full items-center justify-center rounded-md bg-white p-12 text-center text-muted-foreground">
                                         ไม่มีไฟล์แนบสำหรับประกาศนี้
                                     </div>
                                 )}
@@ -286,7 +292,7 @@ export default function ProcurementAnnouncement() {
                                     announcement.attachments.map((file) => (
                                         <a
                                             key={file.id}
-                                            href={file.url}
+                                            href={file.download_url}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="group/item flex cursor-pointer items-center justify-between gap-3 rounded-lg p-2 transition-colors hover:bg-muted"

@@ -7,20 +7,18 @@ use App\Http\Requests\Admin\StoreAnnouncementRequest;
 use App\Http\Requests\Admin\UpdateAnnouncementRequest;
 use App\Jobs\EvaluateSavedSearchAlerts;
 use App\Models\Announcement;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class AnnouncementController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(): RedirectResponse
     {
-        $announcements = Announcement::with('attachments')->latest()->get();
-
-        return response()->json($announcements);
+        return redirect()->route('admin.dashboard');
     }
 
-    public function store(StoreAnnouncementRequest $request): JsonResponse
+    public function store(StoreAnnouncementRequest $request): RedirectResponse
     {
         $data = $this->normalizePublicationData($request->safe()->except('attachment'));
         $announcement = Announcement::create($data);
@@ -29,15 +27,15 @@ class AnnouncementController extends Controller
             $this->attachPdf($announcement, $request->file('attachment'));
         }
 
-        return response()->json($announcement->load('attachments'), 201);
+        return redirect()->route('admin.announcements.index')->with('success', 'Announcement created successfully.');
     }
 
-    public function show(Announcement $announcement): JsonResponse
+    public function show(Announcement $announcement): RedirectResponse
     {
-        return response()->json($announcement->load('attachments'));
+        return redirect()->route('admin.announcements.index');
     }
 
-    public function update(UpdateAnnouncementRequest $request, Announcement $announcement): JsonResponse
+    public function update(UpdateAnnouncementRequest $request, Announcement $announcement): RedirectResponse
     {
         $data = $this->normalizePublicationData($request->safe()->except('attachment'));
         $announcement->update($data);
@@ -48,23 +46,23 @@ class AnnouncementController extends Controller
             $this->attachPdf($announcement, $request->file('attachment'));
         }
 
-        return response()->json($announcement->load('attachments'));
+        return redirect()->route('admin.announcements.index')->with('success', 'Announcement updated successfully.');
     }
 
-    public function destroy(Announcement $announcement): JsonResponse
+    public function destroy(Announcement $announcement): RedirectResponse
     {
         $this->removeStoredFiles($announcement);
         $announcement->delete();
 
-        return response()->json(status: 204);
+        return redirect()->route('admin.announcements.index')->with('success', 'Announcement deleted successfully.');
     }
 
-    public function publish(Announcement $announcement): JsonResponse
+    public function publish(Announcement $announcement): RedirectResponse
     {
         $isAlreadyPublished = $announcement->publication_status === 'published' && $announcement->published_at !== null;
 
         if ($isAlreadyPublished) {
-            return response()->json($announcement->refresh()->load('attachments'));
+            return redirect()->route('admin.announcements.index');
         }
 
         $announcement->update([
@@ -74,16 +72,16 @@ class AnnouncementController extends Controller
 
         EvaluateSavedSearchAlerts::dispatch($announcement->refresh());
 
-        return response()->json($announcement->refresh()->load('attachments'));
+        return redirect()->route('admin.announcements.index')->with('success', 'Announcement published successfully.');
     }
 
-    public function hide(Announcement $announcement): JsonResponse
+    public function hide(Announcement $announcement): RedirectResponse
     {
         $announcement->update([
             'publication_status' => 'hidden',
         ]);
 
-        return response()->json($announcement->refresh()->load('attachments'));
+        return redirect()->route('admin.announcements.index')->with('success', 'Announcement hidden successfully.');
     }
 
     protected function attachPdf(Announcement $announcement, ?UploadedFile $file): void
