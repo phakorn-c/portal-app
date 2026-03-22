@@ -3,18 +3,14 @@ import {
     Bell,
     Bookmark,
     ChevronRight,
-    Clock,
-    Download,
     Eye,
     FileText,
     History,
     LayoutDashboard,
     Plus,
     Settings,
-    TrendingUp,
     User,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -22,35 +18,6 @@ import { Timeline, type TimelineItem } from '@/components/ui/timeline';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
 import type { FilterState } from '@/types/procurement';
-
-
-
-const activityTimeline: TimelineItem[] = [
-    {
-        date: 'วันนี้ 14:30',
-        title: 'ดาวน์โหลดเอกสาร TOR',
-        description: 'โครงการก่อสร้างถนน #66107382',
-        status: 'completed',
-    },
-    {
-        date: 'วันนี้ 10:15',
-        title: 'บันทึกการค้นหาใหม่',
-        description: '"ก่อสร้าง งบ > 5 ล้าน"',
-        status: 'completed',
-    },
-    {
-        date: 'เมื่อวาน 16:45',
-        title: 'ดูรายละเอียดประกาศ',
-        description: 'โครงการจัดซื้อครุภัณฑ์ #66109221',
-        status: 'completed',
-    },
-    {
-        date: 'เมื่อวาน 09:00',
-        title: 'ตั้งการแจ้งเตือนใหม่',
-        description: 'หมวดหมู่: เครื่องมือแพทย์',
-        status: 'completed',
-    },
-];
 
 const sidebarNav = [
     {
@@ -94,18 +61,27 @@ const sidebarNav = [
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
-function serializeCriteria(criteria: FilterState | Record<string, any>): string {
+function serializeCriteria(
+    criteria: FilterState | Record<string, any>,
+): string {
     const params = new URLSearchParams();
     if (criteria.query) params.set('query', criteria.query as string);
-    if ('keyword' in criteria && (criteria as any).keyword) params.set('keyword', (criteria as any).keyword as string);
+    if ('keyword' in criteria && (criteria as any).keyword)
+        params.set('keyword', (criteria as any).keyword as string);
     if (Array.isArray(criteria.organizations)) {
-        criteria.organizations.forEach((val: string) => params.append('organization[]', val));
+        criteria.organizations.forEach((val: string) =>
+            params.append('organization[]', val),
+        );
     }
     if (Array.isArray(criteria.methods)) {
-        criteria.methods.forEach((val: string) => params.append('method[]', val));
+        criteria.methods.forEach((val: string) =>
+            params.append('method[]', val),
+        );
     }
     if (Array.isArray(criteria.categories)) {
-        criteria.categories.forEach((val: string) => params.append('category[]', val));
+        criteria.categories.forEach((val: string) =>
+            params.append('category[]', val),
+        );
     }
     if (criteria.budgetRange?.[0] > 0) {
         params.set('budget_min', String(criteria.budgetRange[0]));
@@ -119,16 +95,46 @@ function serializeCriteria(criteria: FilterState | Record<string, any>): string 
     return params.toString();
 }
 
+function formatActivityDate(dateString: string) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const time = date.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    if (isToday) return `วันนี้ ${time}`;
+    if (isYesterday) return `เมื่อวาน ${time}`;
+
+    return (
+        date.toLocaleDateString('th-TH', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        }) + ` ${time}`
+    );
+}
+
 export default function UserDashboard({
     savedSearchCount,
     recentSavedSearches,
     listingHistory,
     searchHistoryCount,
+    notificationCount,
+    activities,
 }: {
     savedSearchCount: number;
     recentSavedSearches: any[];
     listingHistory: any[];
     searchHistoryCount: number;
+    notificationCount: number;
+    activities: any[];
 }) {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
@@ -160,14 +166,21 @@ export default function UserDashboard({
             color: 'bg-amber-500',
         },
         {
-            label: 'ดาวน์โหลดเอกสาร',
-            value: '0',
-            change: 'เดือนนี้',
+            label: 'การแจ้งเตือน',
+            value: notificationCount.toString(),
+            change: 'ยังไม่ได้อ่าน',
             changeType: 'neutral' as const,
-            icon: Download,
+            icon: Bell,
             color: 'bg-violet-500',
         },
     ];
+
+    const activityTimeline: TimelineItem[] = activities.map((activity) => ({
+        date: formatActivityDate(activity.date),
+        title: activity.title,
+        description: activity.description,
+        status: 'completed',
+    }));
 
     // Map real data to recently viewed
     const realRecentlyViewed = listingHistory.map((history) => ({
@@ -270,7 +283,8 @@ export default function UserDashboard({
                                                 </p>
                                                 <p
                                                     className={`mt-1 text-xs ${
-                                                        stat.changeType === 'positive'
+                                                        stat.changeType ===
+                                                        'positive'
                                                             ? 'text-emerald-600'
                                                             : 'text-muted-foreground'
                                                     }`}
@@ -317,7 +331,9 @@ export default function UserDashboard({
                                                 </Link>
                                             ))}
                                             {realSavedSearches.length === 0 && (
-                                                <p className="text-sm text-muted-foreground">ยังไม่มีการค้นหาที่บันทึกไว้</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    ยังไม่มีการค้นหาที่บันทึกไว้
+                                                </p>
                                             )}
                                         </div>
                                     </CardContent>
@@ -368,7 +384,9 @@ export default function UserDashboard({
                                             </Link>
                                         ))}
                                         {realRecentlyViewed.length === 0 && (
-                                            <p className="text-sm text-muted-foreground">ยังไม่มีประวัติการเข้าชม</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                ยังไม่มีประวัติการเข้าชม
+                                            </p>
                                         )}
                                     </CardContent>
                                 </Card>
