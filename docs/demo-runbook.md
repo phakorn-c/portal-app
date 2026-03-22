@@ -31,7 +31,7 @@ Before starting the demo, reset the database to the clean seeded state.
 3.  **Filter** by Category (Services) or Method (e-bidding).
 4.  **Click** "ดูรายละเอียด" (View Details) on the "Khon Kaen Smart Traffic Upgrade" card.
 5.  **Verify** the detail page shows project budget, location, and contact information.
-6.  **Note:** PDF attachments are currently placeholders for the demo.
+6.  **Verify** the PDF attachment is visible in the TOR section and can be downloaded.
 
 ### Journey 2: Personalized Procurement (Member)
 
@@ -42,8 +42,8 @@ Before starting the demo, reset the database to the clean seeded state.
 3.  **Perform** a search (e.g., "School").
 4.  **Click** the "บันทึกการค้นหา" (Save Search) button.
 5.  **Navigate** to the User Dashboard (`/user/dashboard`).
-6.  **Verify** the saved search appears in the "Saved Searches" tab.
-7.  **Verify** the "Search History" tab shows the recent search activity.
+6.  **Verify** the saved search appears in the "Saved Searches" card.
+7.  **Navigate** to "Search History" (`/user/history`) and verify it shows the recent search activity.
 
 ### Journey 3: Governance & Content Management (Admin)
 
@@ -61,15 +61,22 @@ Before starting the demo, reset the database to the clean seeded state.
 Run these commands to validate the demo story before the presentation:
 
 ```bash
-# 1. Reset and Seed
+# 1. Reset and Seed (canonical demo reset command)
 ./vendor/bin/sail artisan migrate:fresh --seed
 
-# 2. Run Backend Tests (Pest)
+# 2. Run Backend Tests (Pest) - must pass all 130+ tests
 ./vendor/bin/sail artisan test
 
-# 3. Run Frontend Browser Tests (Playwright)
-npx playwright test
+# 3. Run Frontend Browser Tests (Playwright) - must pass all guest/member/admin journeys
+./vendor/bin/sail npm run test:e2e
 ```
+
+### Expected Results
+
+- **Reset:** Both consecutive resets should exit successfully with the same seeded data.
+- **Pest:** 132 tests passed, covering Search, Announcement, SavedSearch, Notification, Admin, and Auth suites.
+- **Playwright:** All guest, member, admin, and redirect browser journeys pass.
+- **Seeded Data:** 5 announcements (3 published, 1 draft, 1 hidden), 2 users (admin + registered).
 
 ## 5. Fallback Notes
 
