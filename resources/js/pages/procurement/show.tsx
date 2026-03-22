@@ -1,11 +1,12 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
-    Bookmark,
     ChevronRight,
     Download,
     FileText,
+    MapPin,
     Menu,
-    Share2,
+    Phone,
+    User,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,9 @@ type AnnouncementDetail = {
     deadline: string;
     status: 'open' | 'urgent' | 'closing' | 'closed';
     description: string | null;
+    location: string | null;
+    contact_name: string | null;
+    contact_phone: string | null;
     publication_status: 'draft' | 'published' | 'hidden';
     published_at: string | null;
     attachments: Attachment[];
@@ -40,6 +44,10 @@ type AnnouncementDetail = {
 
 type PageProps = SharedData & {
     announcement: AnnouncementDetail;
+    taxonomy?: {
+        methodLabels: Record<string, string>;
+        categoryLabels: Record<string, string>;
+    };
 };
 
 function formatDate(value: string | null): string {
@@ -65,8 +73,14 @@ function formatBudget(value: number | string): string {
 }
 
 export default function ProcurementAnnouncement() {
-    const { announcement, auth } = usePage<PageProps>().props;
+    const { announcement, taxonomy } = usePage<PageProps>().props;
     const primaryAttachment = announcement.attachments[0] ?? null;
+
+    const methodLabel =
+        taxonomy?.methodLabels?.[announcement.method] ?? announcement.method;
+    const categoryLabel =
+        taxonomy?.categoryLabels?.[announcement.category] ??
+        announcement.category;
 
     const timelineItems: TimelineItem[] = [
         {
@@ -122,31 +136,13 @@ export default function ProcurementAnnouncement() {
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        {auth.user && (
-                            <Button
-                                variant="outline"
-                                className="gap-2"
-                                type="button"
-                            >
-                                <Bookmark className="h-4 w-4" />
-                                บันทึก
-                            </Button>
-                        )}
-                        <Button
-                            variant="outline"
-                            className="gap-2"
-                            type="button"
-                        >
-                            <Share2 className="h-4 w-4" />
-                            แชร์
-                        </Button>
                         {primaryAttachment ? (
                             <Button className="gap-2 shadow-sm" asChild>
-                                    <a
-                                        href={primaryAttachment.download_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
+                                <a
+                                    href={primaryAttachment.download_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
                                     <Download className="h-4 w-4" />
                                     ดาวน์โหลดเอกสาร PDF
                                 </a>
@@ -190,7 +186,7 @@ export default function ProcurementAnnouncement() {
                                     หมวดหมู่
                                 </p>
                                 <p className="font-medium text-foreground">
-                                    {announcement.category}
+                                    {categoryLabel}
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1 p-5">
@@ -208,7 +204,7 @@ export default function ProcurementAnnouncement() {
                                     วิธีการจัดซื้อจัดจ้าง
                                 </p>
                                 <p className="font-medium text-foreground">
-                                    {announcement.method}
+                                    {methodLabel}
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1 p-5">
@@ -288,6 +284,50 @@ export default function ProcurementAnnouncement() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
+                                <div className="space-y-4 border-b border-border pb-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                                            <MapPin className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                                สถานที่ปฏิบัติงาน
+                                            </p>
+                                            <p className="text-sm font-medium text-foreground">
+                                                {announcement.location ?? '-'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                                            <User className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                                ผู้ติดต่อ
+                                            </p>
+                                            <p className="text-sm font-medium text-foreground">
+                                                {announcement.contact_name ??
+                                                    '-'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                                            <Phone className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                                เบอร์โทรศัพท์
+                                            </p>
+                                            <p className="text-sm font-medium text-foreground">
+                                                {announcement.contact_phone ??
+                                                    '-'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {announcement.attachments.length > 0 ? (
                                     announcement.attachments.map((file) => (
                                         <a

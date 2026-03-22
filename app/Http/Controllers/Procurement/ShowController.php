@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Procurement;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\ListingHistory;
+use App\Support\Procurement\Taxonomy;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,6 +42,9 @@ class ShowController extends Controller
                 'deadline' => $announcement->deadline,
                 'status' => $announcement->status,
                 'description' => $announcement->description,
+                'location' => $announcement->location,
+                'contact_name' => $announcement->contact_name,
+                'contact_phone' => $announcement->contact_phone,
                 'publication_status' => $announcement->publication_status,
                 'published_at' => $announcement->published_at,
                 'attachments' => $announcement->attachments->map(fn ($attachment): array => [
@@ -59,6 +63,10 @@ class ShowController extends Controller
                         'attachment' => $attachment->id,
                     ]),
                 ]),
+            ],
+            'taxonomy' => [
+                'methodLabels' => Taxonomy::methods(),
+                'categoryLabels' => Taxonomy::categories(),
             ],
         ]);
     }
