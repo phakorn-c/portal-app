@@ -1,39 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
 
-const databasePath = fileURLToPath(
-    new URL('./database/database.sqlite', import.meta.url),
+const webServerEnv = Object.fromEntries(
+    Object.entries(process.env).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
 );
-const sailDatabasePath = '/var/www/html/database/database.sqlite';
-const phpTestingEnv = [
-    'APP_ENV=testing',
-    'DB_CONNECTION=sqlite',
-    `DB_DATABASE=${databasePath}`,
-    'SESSION_DRIVER=file',
-    'CACHE_STORE=file',
-    'QUEUE_CONNECTION=sync',
-].join(' ');
-const sailTestingExec = [
-    './vendor/bin/sail',
-    'exec',
-    '-T',
-    '-u',
-    'sail',
-    '-e',
-    'APP_ENV=testing',
-    '-e',
-    'DB_CONNECTION=sqlite',
-    '-e',
-    `DB_DATABASE=${sailDatabasePath}`,
-    '-e',
-    'SESSION_DRIVER=file',
-    '-e',
-    'CACHE_STORE=file',
-    '-e',
-    'QUEUE_CONNECTION=sync',
-    'laravel.test',
-].join(' ');
-const resetArtisanCommand = `${phpTestingEnv} php artisan`;
 
 export default defineConfig({
     testDir: './tests/Browser',
@@ -54,9 +25,10 @@ export default defineConfig({
     ],
     webServer: {
         command:
-            `${resetArtisanCommand} optimize:clear && ` +
-            `${resetArtisanCommand} migrate:fresh --seed && ` +
-            `${phpTestingEnv} php artisan serve --host=127.0.0.1 --port=8000`,
+            'php artisan optimize:clear && ' +
+            'php artisan migrate:fresh --seed && ' +
+            'php artisan serve --host=127.0.0.1 --port=8000',
+        env: webServerEnv,
         url: 'http://localhost:8000',
         reuseExistingServer: false,
         timeout: 120_000,

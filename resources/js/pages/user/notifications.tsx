@@ -9,6 +9,7 @@ import {
     Settings,
     User,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -126,12 +127,37 @@ export default function NotificationSettings() {
     const { auth, notifications, preferences, alerts } =
         usePage<PageProps>().props;
     const user = auth.user;
+    const [currentPreferences, setCurrentPreferences] =
+        useState<NotificationPreference>(preferences);
 
-    const updatePreference = (next: NotificationPreference) => {
-        router.put('/user/notification-preferences', next, {
-            preserveScroll: true,
-            preserveState: true,
+    const updatePreference = async (next: NotificationPreference) => {
+        const previous = currentPreferences;
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+
+        setCurrentPreferences(next);
+
+        const headers: Record<string, string> = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+
+        if (csrfToken) {
+            headers['X-CSRF-TOKEN'] = csrfToken;
+        }
+
+        const response = await window.fetch('/user/notification-preferences', {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify(next),
         });
+
+        if (!response.ok) {
+            setCurrentPreferences(previous);
+        }
     };
 
     return (
@@ -397,12 +423,10 @@ export default function NotificationSettings() {
                                             </div>
                                             <Switch
                                                 data-test="notification-channel-email"
-                                                checked={
-                                                    preferences.email_enabled
-                                                }
+                                                checked={currentPreferences.email_enabled}
                                                 onCheckedChange={(checked) =>
                                                     updatePreference({
-                                                        ...preferences,
+                                                        ...currentPreferences,
                                                         email_enabled: checked,
                                                     })
                                                 }
@@ -425,12 +449,10 @@ export default function NotificationSettings() {
                                             </div>
                                             <Switch
                                                 data-test="notification-channel-in-app"
-                                                checked={
-                                                    preferences.website_enabled
-                                                }
+                                                checked={currentPreferences.website_enabled}
                                                 onCheckedChange={(checked) =>
                                                     updatePreference({
-                                                        ...preferences,
+                                                        ...currentPreferences,
                                                         website_enabled:
                                                             checked,
                                                     })

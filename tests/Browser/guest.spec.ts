@@ -17,6 +17,7 @@ test('guest can search procurement and open an announcement detail page', async 
     await page
         .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
         .fill(announcement.title);
+    await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
 
     const announcementCard = page.locator('article').filter({
         has: page.getByRole('heading', { name: announcement.title }),

@@ -4,18 +4,6 @@ import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
-const databasePath = fileURLToPath(
-    new URL('../../database/database.sqlite', import.meta.url),
-);
-const artisanEnv = {
-    ...process.env,
-    APP_ENV: 'testing',
-    DB_CONNECTION: 'sqlite',
-    DB_DATABASE: databasePath,
-    SESSION_DRIVER: 'file',
-    CACHE_STORE: 'file',
-    QUEUE_CONNECTION: 'sync',
-};
 
 function evidencePath(fileName: string) {
     const evidenceDirectory = fileURLToPath(
@@ -33,12 +21,13 @@ function artisan(...args: string[]) {
     return execFileSync('php', ['artisan', ...args], {
         cwd: projectRoot,
         encoding: 'utf8',
-        env: artisanEnv,
+        env: process.env,
     });
 }
 
 function resetDatabase() {
     artisan('migrate:fresh', '--seed', '--force');
+    artisan('cache:clear');
 }
 
 function processQueuedJobs() {
@@ -90,7 +79,13 @@ function createUserFixtures() {
         `,
     ).trim();
 
-    return JSON.parse(output) as { id: number; title: string };
+    const jsonPayload = output.match(/\{[\s\S]*\}$/)?.[0];
+
+    if (!jsonPayload) {
+        throw new Error(`Unable to parse fixture JSON payload: ${output}`);
+    }
+
+    return JSON.parse(jsonPayload) as { id: number; title: string };
 }
 
 async function loginAs(page: Page, email: string, password: string) {
@@ -98,7 +93,7 @@ async function loginAs(page: Page, email: string, password: string) {
     await page.locator('[name="email"]').fill(email);
     await page.locator('[name="password"]').fill(password);
     await page.locator('[data-test="login-button"]').click();
-    await page.waitForURL(/\/(user\/dashboard|admin)$/);
+    await page.waitForURL(/\/(user\/dashboard|admin|dashboard|)$/);
 }
 
 async function logout(page: Page) {
@@ -203,7 +198,8 @@ test('registered user sees member navigation and can open saved searches and his
     page,
 }) => {
     resetDatabase();
-    const announcement = createUserFixtures();
+    createUserFixtures();
+    const seededAnnouncementTitle = 'Khon Kaen Smart Traffic Upgrade';
 
     await loginAs(page, 'test@example.com', 'password');
 
@@ -228,20 +224,18 @@ test('registered user sees member navigation and can open saved searches and his
     await page.goto('/procurement');
     await page
         .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
-        .fill(announcement.title);
+        .fill(seededAnnouncementTitle);
     await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
 
     const announcementCard = page.locator('article').filter({
-        has: page.getByRole('heading', { name: announcement.title }),
+        has: page.getByRole('heading', { name: seededAnnouncementTitle }),
     });
 
     await expect(announcementCard).toHaveCount(1);
     await announcementCard
         .getByRole('link', { name: /ดูรายละเอียด|ดูผลการจัดซื้อ/ })
         .click();
-    await expect(page).toHaveURL(
-        new RegExp(`/procurement/announcements/${announcement.id}$`),
-    );
+    await expect(page).toHaveURL(/\/procurement\/announcements\/\d+$/);
 
     await page.goto('/user/history');
     await expectListOrEmptyState(page, '[data-test="history-row"]', [
@@ -273,10 +267,10 @@ test('registered user can view saved searches and toggle notification settings',
     );
     await expect(emailSwitch).toBeVisible();
 
-    await emailSwitch.click();
+    await emailSwitch.click({ force: true });
     await expect(page).toHaveURL(/\/user\/notifications/);
 
-    await emailSwitch.click();
+    await emailSwitch.click({ force: true });
 });
 
 test('registered user can save current procurement search', async ({

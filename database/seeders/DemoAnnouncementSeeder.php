@@ -113,6 +113,8 @@ class DemoAnnouncementSeeder extends Seeder
             ],
         ]);
 
+        $this->syncPostgresSequence('announcements', 'id');
+
         // Create a demo PDF attachment for the first published announcement
         $attachmentId = 1;
         $storedFilename = 'attachments/demo-smart-traffic-tor.pdf';
@@ -130,6 +132,19 @@ class DemoAnnouncementSeeder extends Seeder
             'created_at' => '2026-03-18 09:00:00',
             'updated_at' => '2026-03-18 09:00:00',
         ]);
+
+        $this->syncPostgresSequence('announcement_attachments', 'id');
+    }
+
+    private function syncPostgresSequence(string $table, string $column): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        DB::statement(
+            "SELECT setval(pg_get_serial_sequence('{$table}', '{$column}'), COALESCE(MAX({$column}), 1), true) FROM {$table}"
+        );
     }
 
     private function minimalPdfContent(): string

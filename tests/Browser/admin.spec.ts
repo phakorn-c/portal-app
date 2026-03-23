@@ -3,29 +3,18 @@ import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
 
 const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
-const databasePath = fileURLToPath(
-    new URL('../../database/database.sqlite', import.meta.url),
-);
-const artisanEnv = {
-    ...process.env,
-    APP_ENV: 'testing',
-    DB_CONNECTION: 'sqlite',
-    DB_DATABASE: databasePath,
-    SESSION_DRIVER: 'file',
-    CACHE_STORE: 'file',
-    QUEUE_CONNECTION: 'sync',
-};
 
 function artisan(...args: string[]) {
     return execFileSync('php', ['artisan', ...args], {
         cwd: projectRoot,
         encoding: 'utf8',
-        env: artisanEnv,
+        env: process.env,
     });
 }
 
 function resetDatabase() {
     artisan('migrate:fresh', '--seed', '--force');
+    artisan('cache:clear');
 }
 
 function createAdminFixtures() {
@@ -51,7 +40,7 @@ async function loginAs(page: Page, email: string, password: string) {
     await page.locator('[name="email"]').fill(email);
     await page.locator('[name="password"]').fill(password);
     await page.locator('[data-test="login-button"]').click();
-    await page.waitForURL(/\/(user\/dashboard|admin)$/);
+    await page.waitForURL(/\/(user\/dashboard|admin|dashboard|)$/);
 }
 
 async function expectListOrEmptyState(

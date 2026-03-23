@@ -47,7 +47,7 @@ import * as adminRoutes from '@/routes/admin';
 import * as userRoutes from '@/routes/admin/users';
 
 type Announcement = {
-    id: string;
+    id: number;
     title: string;
     description?: string;
     organization: string;
