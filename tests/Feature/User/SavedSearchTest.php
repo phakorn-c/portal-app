@@ -16,32 +16,62 @@ use function Pest\Laravel\postJson;
 use function Pest\Laravel\put;
 use function Pest\Laravel\putJson;
 
-test('authenticated verified user can create a saved search with criteria', function () {
-    $user = User::factory()->create();
+function createUser(): User
+{
+    $user = User::factory()->createOne();
+
+    if (! $user instanceof User) {
+        throw new RuntimeException('Expected User model instance.');
+    }
+
+    return $user;
+}
+
+test('authenticated verified user can create a saved search from procurement criteria', function () {
+    $user = createUser();
+    $criteria = [
+        ...FilterState::defaults(),
+        'query' => 'Playwright Auth Procurement Notice',
+        'budgetRange' => [100000, 500000],
+        'organizations' => ['เทศบาลนครขอนแก่น'],
+        'methods' => ['e-bidding'],
+        'categories' => ['construction'],
+        'sortBy' => 'deadline',
+    ];
 
     actingAs($user);
 
     $response = postJson(route('user.saved-searches.store'), [
-        'name' => 'Construction alerts',
-        'criteria' => FilterState::defaults(),
+        'name' => 'Demo Saved Search',
+        'criteria' => $criteria,
         'alert_enabled' => true,
     ]);
 
     $response->assertCreated()
-        ->assertJsonPath('name', 'Construction alerts')
-        ->assertJsonPath('criteria.sortBy', 'latest')
+        ->assertJsonPath('name', 'Demo Saved Search')
+        ->assertJsonPath('criteria.query', 'Playwright Auth Procurement Notice')
+        ->assertJsonPath('criteria.organizations.0', 'เทศบาลนครขอนแก่น')
+        ->assertJsonPath('criteria.methods.0', 'e-bidding')
+        ->assertJsonPath('criteria.categories.0', 'construction')
+        ->assertJsonPath('criteria.budgetRange.0', 100000)
+        ->assertJsonPath('criteria.budgetRange.1', 500000)
+        ->assertJsonPath('criteria.sortBy', 'deadline')
         ->assertJsonPath('alert_enabled', true);
 
     assertDatabaseHas('saved_searches', [
         'user_id' => $user->id,
-        'name' => 'Construction alerts',
+        'name' => 'Demo Saved Search',
         'alert_enabled' => true,
     ]);
+
+    $savedSearch = SavedSearch::query()->where('user_id', $user->id)->firstOrFail();
+
+    expect($savedSearch->criteria)->toBe($criteria);
 });
 
 test('authenticated verified user can list their saved searches', function () {
-    $user = User::factory()->create();
-    $otherUser = User::factory()->create();
+    $user = createUser();
+    $otherUser = createUser();
 
     SavedSearch::factory()->for($user)->create(['name' => 'My Search']);
     SavedSearch::factory()->for($otherUser)->create(['name' => 'Other Search']);
@@ -56,7 +86,7 @@ test('authenticated verified user can list their saved searches', function () {
 });
 
 test('authenticated verified user can update a saved search', function () {
-    $user = User::factory()->create();
+    $user = createUser();
     $savedSearch = SavedSearch::factory()->for($user)->create([
         'name' => 'Initial',
         'alert_enabled' => false,
@@ -88,7 +118,7 @@ test('authenticated verified user can update a saved search', function () {
 });
 
 test('authenticated verified user can delete a saved search', function () {
-    $user = User::factory()->create();
+    $user = createUser();
     $savedSearch = SavedSearch::factory()->for($user)->create();
 
     actingAs($user);
@@ -100,8 +130,8 @@ test('authenticated verified user can delete a saved search', function () {
 });
 
 test('user cannot delete another users saved search', function () {
-    $user = User::factory()->create();
-    $owner = User::factory()->create();
+    $user = createUser();
+    $owner = createUser();
     $savedSearch = SavedSearch::factory()->for($owner)->create();
 
     actingAs($user);
@@ -110,6 +140,28 @@ test('user cannot delete another users saved search', function () {
 
     $response->assertForbidden();
     assertDatabaseHas('saved_searches', ['id' => $savedSearch->id]);
+});
+
+test('user cannot update or run another users saved search', function () {
+    $user = createUser();
+    $owner = createUser();
+    $savedSearch = SavedSearch::factory()->for($owner)->create();
+
+    actingAs($user);
+
+    putJson(route('user.saved-searches.update', $savedSearch), [
+        'name' => 'Stolen Search',
+        'criteria' => FilterState::defaults(),
+        'alert_enabled' => true,
+    ])->assertForbidden();
+
+    postJson(route('user.saved-searches.run', $savedSearch))
+        ->assertForbidden();
+
+    assertDatabaseMissing('saved_searches', [
+        'id' => $savedSearch->id,
+        'name' => 'Stolen Search',
+    ]);
 });
 
 test('guest cannot create list update delete saved searches', function () {
@@ -131,7 +183,7 @@ test('guest cannot create list update delete saved searches', function () {
 });
 
 test('user can retrieve their notification preferences and default is created when missing', function () {
-    $user = User::factory()->create();
+    $user = createUser();
 
     actingAs($user);
 
@@ -150,7 +202,7 @@ test('user can retrieve their notification preferences and default is created wh
 });
 
 test('user can update email and website channel preferences', function () {
-    $user = User::factory()->create();
+    $user = createUser();
     NotificationPreference::factory()->for($user)->create([
         'website_enabled' => true,
         'email_enabled' => false,

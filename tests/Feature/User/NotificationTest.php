@@ -51,15 +51,15 @@ test('does not fire duplicate notifications', function () {
     ]);
 
     $announcement = Announcement::factory()->published()->create([
-        'organization' => 'Khon Kaen Municipality',
-        'category' => 'Construction',
+        'organization' => 'เทศบาลนครขอนแก่น',
+        'category' => 'construction',
         'method' => 'e-bidding',
         'published_at' => now(),
     ]);
 
     $criteria = FilterState::defaults();
-    $criteria['organizations'] = ['Khon Kaen Municipality'];
-    $criteria['categories'] = ['Construction'];
+    $criteria['organizations'] = ['เทศบาลนครขอนแก่น'];
+    $criteria['categories'] = ['construction'];
     $criteria['methods'] = ['e-bidding'];
 
     SavedSearch::factory()->for($user)->create([
@@ -83,15 +83,15 @@ test('matching saved search creates notification', function () {
     ]);
 
     $announcement = Announcement::factory()->published()->create([
-        'organization' => 'Khon Kaen Municipality',
-        'category' => 'Construction',
+        'organization' => 'เทศบาลนครขอนแก่น',
+        'category' => 'construction',
         'method' => 'e-bidding',
         'published_at' => now(),
     ]);
 
     $criteria = FilterState::defaults();
-    $criteria['organizations'] = ['Khon Kaen Municipality'];
-    $criteria['categories'] = ['Construction'];
+    $criteria['organizations'] = ['เทศบาลนครขอนแก่น'];
+    $criteria['categories'] = ['construction'];
     $criteria['methods'] = ['e-bidding'];
 
     $savedSearch = SavedSearch::factory()->for($user)->create([
@@ -125,15 +125,15 @@ test('does not create notification when alert_enabled is false', function () {
     ]);
 
     $announcement = Announcement::factory()->published()->create([
-        'organization' => 'Khon Kaen Municipality',
-        'category' => 'Construction',
+        'organization' => 'เทศบาลนครขอนแก่น',
+        'category' => 'construction',
         'method' => 'e-bidding',
         'published_at' => now(),
     ]);
 
     $criteria = FilterState::defaults();
-    $criteria['organizations'] = ['Khon Kaen Municipality'];
-    $criteria['categories'] = ['Construction'];
+    $criteria['organizations'] = ['เทศบาลนครขอนแก่น'];
+    $criteria['categories'] = ['construction'];
     $criteria['methods'] = ['e-bidding'];
 
     SavedSearch::factory()->for($user)->create([
@@ -158,15 +158,15 @@ test('does not fire duplicate notifications for same saved search', function () 
     ]);
 
     $announcement = Announcement::factory()->published()->create([
-        'organization' => 'Khon Kaen Municipality',
-        'category' => 'Construction',
+        'organization' => 'เทศบาลนครขอนแก่น',
+        'category' => 'construction',
         'method' => 'e-bidding',
         'published_at' => now(),
     ]);
 
     $criteria = FilterState::defaults();
-    $criteria['organizations'] = ['Khon Kaen Municipality'];
-    $criteria['categories'] = ['Construction'];
+    $criteria['organizations'] = ['เทศบาลนครขอนแก่น'];
+    $criteria['categories'] = ['construction'];
     $criteria['methods'] = ['e-bidding'];
 
     $savedSearch = SavedSearch::factory()->for($user)->create([

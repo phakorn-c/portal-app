@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
 const databasePath = fileURLToPath(
@@ -16,6 +17,18 @@ const artisanEnv = {
     QUEUE_CONNECTION: 'sync',
 };
 
+function evidencePath(fileName: string) {
+    const evidenceDirectory = fileURLToPath(
+        new URL('../../.sisyphus/evidence/', import.meta.url),
+    );
+
+    mkdirSync(evidenceDirectory, { recursive: true });
+
+    return fileURLToPath(
+        new URL(`../../.sisyphus/evidence/${fileName}`, import.meta.url),
+    );
+}
+
 function artisan(...args: string[]) {
     return execFileSync('php', ['artisan', ...args], {
         cwd: projectRoot,
@@ -28,6 +41,18 @@ function resetDatabase() {
     artisan('migrate:fresh', '--seed', '--force');
 }
 
+function processQueuedJobs() {
+    return execFileSync(
+        'php',
+        ['artisan', 'queue:work', 'database', '--stop-when-empty', '--tries=1'],
+        {
+            cwd: projectRoot,
+            encoding: 'utf8',
+            env: process.env,
+        },
+    );
+}
+
 function createUserFixtures() {
     const output = artisan(
         'tinker',
@@ -35,8 +60,8 @@ function createUserFixtures() {
         `
             $announcement = \\App\\Models\\Announcement::factory()->published()->create([
                 'title' => 'Playwright Auth Procurement Notice',
-                'organization' => 'Khon Kaen Registered User Office',
-                'category' => 'Construction',
+                'organization' => 'องค์การบริหารส่วนจังหวัด',
+                'category' => 'construction',
                 'method' => 'e-bidding',
                 'status' => 'open',
                 'budget' => 325000,
@@ -74,6 +99,82 @@ async function loginAs(page: Page, email: string, password: string) {
     await page.locator('[name="password"]').fill(password);
     await page.locator('[data-test="login-button"]').click();
     await page.waitForURL(/\/(user\/dashboard|admin)$/);
+}
+
+async function logout(page: Page) {
+    const userMenuTrigger = page.locator('button').filter({
+        has: page.locator('[data-slot="avatar"]'),
+    });
+
+    await userMenuTrigger.click();
+
+    const logoutResponsePromise = page.waitForResponse(
+        (response) =>
+            response.url().includes('/logout') &&
+            response.request().method() === 'POST',
+    );
+
+    await page.locator('[data-test="logout-button"]').click();
+    await logoutResponsePromise;
+    await page.waitForLoadState('networkidle');
+    await expect(userMenuTrigger).toHaveCount(0);
+}
+
+async function selectOption(
+    page: Page,
+    container: Locator,
+    index: number,
+    optionLabel: string,
+) {
+    await container.getByRole('combobox').nth(index).click();
+    await page.getByRole('option', { name: optionLabel, exact: true }).click();
+}
+
+async function createAdminAnnouncement(page: Page, title: string) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        await page.goto('/admin');
+        await page.getByRole('button', { name: 'เพิ่มประกาศใหม่' }).click();
+
+        const announcementDialog = page.getByRole('dialog');
+
+        await expect(
+            announcementDialog.getByRole('heading', {
+                name: 'เพิ่มประกาศใหม่',
+            }),
+        ).toBeVisible();
+
+        await announcementDialog.locator('#title').fill(title);
+        await announcementDialog
+            .locator('#description')
+            .fill('Playwright alert flow announcement');
+        await selectOption(page, announcementDialog, 0, 'เทศบาลนครขอนแก่น');
+        await announcementDialog.locator('#budget').fill('450000');
+        await announcementDialog.locator('#deadline').fill('2031-12-31');
+
+        const createResponsePromise = page.waitForResponse(
+            (response) =>
+                response.url().includes('/admin/announcements') &&
+                response.request().method() === 'POST',
+        );
+
+        await announcementDialog
+            .getByRole('button', { name: 'บันทึก' })
+            .click();
+
+        const status = (await createResponsePromise).status();
+
+        if ([302, 303].includes(status)) {
+            await expect(announcementDialog).not.toBeVisible();
+
+            return;
+        }
+
+        if (status !== 500) {
+            throw new Error(`Unexpected announcement create status: ${status}`);
+        }
+    }
+
+    throw new Error('Unable to create admin announcement');
 }
 
 async function expectListOrEmptyState(
@@ -128,6 +229,7 @@ test('registered user sees member navigation and can open saved searches and his
     await page
         .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
         .fill(announcement.title);
+    await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
 
     const announcementCard = page.locator('article').filter({
         has: page.getByRole('heading', { name: announcement.title }),
@@ -175,4 +277,195 @@ test('registered user can view saved searches and toggle notification settings',
     await expect(page).toHaveURL(/\/user\/notifications/);
 
     await emailSwitch.click();
+});
+
+test('registered user can save current procurement search', async ({
+    page,
+}) => {
+    resetDatabase();
+    const announcement = createUserFixtures();
+    const searchName = `Demo Saved Search ${Date.now()}`;
+
+    await loginAs(page, 'test@example.com', 'password');
+
+    await page.goto('/procurement');
+    await expect(
+        page.locator('[data-test="procurement-save-search-trigger"]'),
+    ).toBeVisible();
+
+    await page
+        .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
+        .fill(announcement.title);
+    await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
+
+    await page.locator('[data-test="procurement-save-search-trigger"]').click();
+    await page
+        .locator('[data-test="procurement-save-search-name"]')
+        .fill(searchName);
+
+    const alertToggle = page.locator(
+        '[data-test="procurement-save-search-alert-enabled"]',
+    );
+    await expect(alertToggle).toHaveAttribute('data-state', 'checked');
+    await alertToggle.click();
+    await expect(alertToggle).toHaveAttribute('data-state', 'unchecked');
+    await alertToggle.click();
+    await expect(alertToggle).toHaveAttribute('data-state', 'checked');
+
+    const saveResponsePromise = page.waitForResponse(
+        (response) =>
+            response.url().includes('/user/saved-searches') &&
+            response.request().method() === 'POST',
+    );
+
+    await page.locator('[data-test="procurement-save-search-submit"]').click();
+    expect((await saveResponsePromise).status()).toBe(201);
+
+    await page.goto('/user/saved-searches');
+
+    const savedSearchRow = page
+        .locator('[data-test="saved-search-row"]')
+        .filter({
+            has: page.getByRole('heading', { name: searchName }),
+        });
+
+    await expect(savedSearchRow).toHaveCount(1);
+    await expect(savedSearchRow).toContainText('เปิดแจ้งเตือน');
+
+    await page.screenshot({
+        path: evidencePath('task-4-save-search.png'),
+        fullPage: true,
+    });
+
+    await savedSearchRow
+        .locator('[data-test="run-saved-search-button"]')
+        .click();
+
+    await expect(page).toHaveURL(/\/procurement\?/);
+    expect(new URL(page.url()).searchParams.get('query')).toBe(
+        announcement.title,
+    );
+    await expect(
+        page.getByPlaceholder(
+            'ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...',
+        ),
+    ).toHaveValue(announcement.title);
+});
+
+test('guest cannot save procurement search from public results', async ({
+    page,
+}) => {
+    resetDatabase();
+
+    await page.goto('/procurement');
+    await expect(
+        page.locator('[data-test="procurement-save-search-trigger"]'),
+    ).toHaveCount(0);
+
+    await page.screenshot({
+        path: evidencePath('task-4-save-search-guest.png'),
+        fullPage: true,
+    });
+});
+
+test('admin publish creates notification for saved search', async ({
+    page,
+}) => {
+    resetDatabase();
+
+    const uniqueSuffix = Date.now();
+    const announcementTitle = `Playwright Alert Flow ${uniqueSuffix}`;
+    const searchName = `Alert Flow ${uniqueSuffix}`;
+
+    await loginAs(page, 'test@example.com', 'password');
+
+    await page.goto('/procurement');
+    await page
+        .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
+        .fill(announcementTitle);
+    await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
+    await page.locator('[data-test="procurement-save-search-trigger"]').click();
+    await page
+        .locator('[data-test="procurement-save-search-name"]')
+        .fill(searchName);
+
+    const alertToggle = page.locator(
+        '[data-test="procurement-save-search-alert-enabled"]',
+    );
+    await expect(alertToggle).toHaveAttribute('data-state', 'checked');
+
+    const saveResponsePromise = page.waitForResponse(
+        (response) =>
+            response.url().includes('/user/saved-searches') &&
+            response.request().method() === 'POST',
+    );
+
+    await page.locator('[data-test="procurement-save-search-submit"]').click();
+    expect((await saveResponsePromise).status()).toBe(201);
+
+    await page.goto('/user/saved-searches');
+
+    const savedSearchRow = page
+        .locator('[data-test="saved-search-row"]')
+        .filter({
+            has: page.getByRole('heading', { name: searchName }),
+        });
+
+    await expect(savedSearchRow).toHaveCount(1);
+    await expect(savedSearchRow).toContainText('เปิดแจ้งเตือน');
+
+    await logout(page);
+
+    await loginAs(page, 'admin@example.com', 'password');
+    await createAdminAnnouncement(page, announcementTitle);
+
+    await page.getByPlaceholder('ค้นหาประกาศ...').fill(announcementTitle);
+
+    const announcementRow = page.locator('tbody tr').filter({
+        has: page.getByText(announcementTitle, { exact: true }),
+    });
+
+    await expect(announcementRow).toHaveCount(1);
+
+    const publishResponsePromise = page.waitForResponse(
+        (response) =>
+            response.url().includes('/publish') &&
+            response.request().method() === 'PATCH',
+    );
+
+    await announcementRow
+        .locator('[data-test="admin-announcement-publish"]')
+        .click();
+    expect([302, 303]).toContain((await publishResponsePromise).status());
+
+    await expect(
+        announcementRow.locator('[data-test="admin-announcement-publish"]'),
+    ).toHaveAttribute('title', 'ซ่อน');
+
+    processQueuedJobs();
+
+    await logout(page);
+
+    await loginAs(page, 'test@example.com', 'password');
+    await page.goto('/user/notifications');
+
+    const alertRow = page
+        .locator('[data-test="notification-alert-row"]')
+        .filter({
+            has: page.getByText(searchName, { exact: true }),
+        });
+
+    await expect(alertRow).toHaveCount(1);
+    await expect(alertRow).not.toContainText('ยังไม่เคยแจ้งเตือน');
+    await expect(
+        page.getByText(announcementTitle, { exact: true }),
+    ).toBeVisible();
+    await expect(
+        page.getByText(`จากการค้นหา: ${searchName}`, { exact: true }),
+    ).toBeVisible();
+
+    await page.screenshot({
+        path: evidencePath('task-5-alert-flow.png'),
+        fullPage: true,
+    });
 });

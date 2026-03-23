@@ -2,13 +2,15 @@
 
 namespace App\Support\Procurement;
 
+use Illuminate\Validation\Rule;
+
 class FilterState
 {
     public static function defaults(): array
     {
         return [
             'query' => '',
-            'budgetRange' => [0, 10000000],
+            'budgetRange' => [0.0, 10000000.0],
             'organizations' => [],
             'methods' => [],
             'categories' => [],
@@ -25,11 +27,11 @@ class FilterState
             $prefix.'.budgetRange.0' => ['required', 'numeric'],
             $prefix.'.budgetRange.1' => ['required', 'numeric'],
             $prefix.'.organizations' => ['present', 'array'],
-            $prefix.'.organizations.*' => ['string'],
+            $prefix.'.organizations.*' => [Rule::in(Taxonomy::organizations())],
             $prefix.'.methods' => ['present', 'array'],
-            $prefix.'.methods.*' => ['string'],
+            $prefix.'.methods.*' => [Rule::in(array_keys(Taxonomy::methods()))],
             $prefix.'.categories' => ['present', 'array'],
-            $prefix.'.categories.*' => ['string'],
+            $prefix.'.categories.*' => [Rule::in(array_keys(Taxonomy::categories()))],
             $prefix.'.sortBy' => ['required', 'in:latest,budget-high,budget-low,deadline'],
         ];
     }

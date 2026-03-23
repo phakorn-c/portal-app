@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SearchHistory;
 use App\Support\Procurement\AnnouncementSearch;
 use App\Support\Procurement\FilterState;
+use App\Support\Procurement\Taxonomy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -30,6 +31,7 @@ class SearchController extends Controller
             'announcements' => $announcements,
             'filters' => $criteria,
             'pagination' => $announcements->toArray(),
+            'taxonomy' => Taxonomy::forInertia(),
         ]);
     }
 

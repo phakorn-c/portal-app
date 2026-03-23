@@ -1,10 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
 import {
+    BookmarkPlus,
     Building2,
     CalendarDays,
     ChevronRight,
     Gavel,
+    LoaderCircle,
     Search,
     SlidersHorizontal,
     X,
@@ -14,7 +16,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
 import {
     Select,
@@ -25,6 +36,7 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Switch } from '@/components/ui/switch';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
 import type { FilterState } from '@/types/procurement';
@@ -53,25 +65,14 @@ type PageProps = SharedData & {
     announcements: AnnouncementPagination;
     filters: FilterState;
     pagination: AnnouncementPagination;
+    taxonomy: {
+        organizations: { value: string; label: string }[];
+        methods: { value: string; label: string }[];
+        categories: { value: string; label: string }[];
+        methodLabels: Record<string, string>;
+        categoryLabels: Record<string, string>;
+    };
 };
-
-const organizations = [
-    'องค์การบริหารส่วนจังหวัด',
-    'เทศบาลนครขอนแก่น',
-    'แขวงทางหลวงขอนแก่น',
-    'มหาวิทยาลัยขอนแก่น',
-    'สำนักงานสาธารณสุขจังหวัด',
-];
-
-const categories = ['ก่อสร้าง', 'ไอที/ครุภัณฑ์', 'ที่ปรึกษา', 'การแพทย์'];
-
-const methods = [
-    'e-Bidding',
-    'วิธีเฉพาะเจาะจง',
-    'คัดเลือก',
-    'สอบราคา',
-    'e-Market',
-];
 
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
@@ -95,6 +96,22 @@ function parseBudget(value: number | string): number {
     }
 
     return Number.parseFloat(value) || 0;
+}
+
+function readCookie(name: string): string | null {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const cookie = document.cookie
+        .split('; ')
+        .find((value) => value.startsWith(`${name}=`));
+
+    if (!cookie) {
+        return null;
+    }
+
+    return decodeURIComponent(cookie.split('=').slice(1).join('='));
 }
 
 function mapSortForQuery(sortBy: SortValue): string {
@@ -128,8 +145,13 @@ function buildQueryParams(
 }
 
 export default function ProcurementSearch() {
-    const { auth, announcements, filters, pagination } =
+    const { auth, announcements, filters, pagination, taxonomy } =
         usePage<PageProps>().props;
+    const metaCsrfToken = document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute('content');
+    const cookieCsrfToken = readCookie('XSRF-TOKEN');
+    const csrfToken = metaCsrfToken ?? cookieCsrfToken;
 
     const [query, setQuery] = useState(filters.query);
     const [budgetRange, setBudgetRange] = useState<[number, number]>(
@@ -145,6 +167,15 @@ export default function ProcurementSearch() {
     const [selectedCategories, setSelectedCategories] = useState<string[]>(
         filters.categories,
     );
+    const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+    const [saveSearchName, setSaveSearchName] = useState('');
+    const [saveSearchAlertsEnabled, setSaveSearchAlertsEnabled] =
+        useState(true);
+    const [saveSearchError, setSaveSearchError] = useState<string | null>(null);
+    const [saveSearchSuccess, setSaveSearchSuccess] = useState<string | null>(
+        null,
+    );
+    const [isSavingSearch, setIsSavingSearch] = useState(false);
 
     useEffect(() => {
         setQuery(filters.query);
@@ -161,6 +192,8 @@ export default function ProcurementSearch() {
             preserveScroll: true,
             replace: true,
         });
+
+        setSaveSearchSuccess(null);
     };
 
     const criteria: FilterState = {
@@ -174,6 +207,7 @@ export default function ProcurementSearch() {
 
     const activeFilters = [
         ...selectedOrganizations.map((value) => ({
+            label: value,
             value,
             onRemove: () => {
                 const next = selectedOrganizations.filter(
@@ -184,6 +218,7 @@ export default function ProcurementSearch() {
             },
         })),
         ...selectedMethods.map((value) => ({
+            label: taxonomy.methodLabels[value] ?? value,
             value,
             onRemove: () => {
                 const next = selectedMethods.filter((item) => item !== value);
@@ -192,6 +227,7 @@ export default function ProcurementSearch() {
             },
         })),
         ...selectedCategories.map((value) => ({
+            label: taxonomy.categoryLabels[value] ?? value,
             value,
             onRemove: () => {
                 const next = selectedCategories.filter(
@@ -208,6 +244,8 @@ export default function ProcurementSearch() {
         query.trim() !== '' ||
         budgetRange[0] !== 0 ||
         budgetRange[1] !== 10000000;
+    const canCreateSavedSearch =
+        auth.user !== null && auth.user.email_verified_at !== null;
 
     const cards = useMemo(
         () =>
@@ -236,6 +274,92 @@ export default function ProcurementSearch() {
         setSortBy(next.sortBy);
 
         submitFilters(next);
+    };
+
+    const resetSaveSearchDialog = () => {
+        setSaveSearchName('');
+        setSaveSearchAlertsEnabled(true);
+        setSaveSearchError(null);
+        setIsSavingSearch(false);
+    };
+
+    const handleSaveDialogChange = (open: boolean) => {
+        setIsSaveDialogOpen(open);
+
+        if (!open) {
+            resetSaveSearchDialog();
+        }
+    };
+
+    const handleCreateSavedSearch = async () => {
+        const trimmedName = saveSearchName.trim();
+
+        if (trimmedName === '') {
+            setSaveSearchError('กรุณาตั้งชื่อการค้นหาก่อนบันทึก');
+
+            return;
+        }
+
+        if (!csrfToken) {
+            setSaveSearchError('ไม่พบข้อมูลความปลอดภัยสำหรับการบันทึกการค้นหา');
+
+            return;
+        }
+
+        const headers: Record<string, string> = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+
+        if (metaCsrfToken) {
+            headers['X-CSRF-TOKEN'] = metaCsrfToken;
+        } else if (cookieCsrfToken) {
+            headers['X-XSRF-TOKEN'] = cookieCsrfToken;
+        }
+
+        setIsSavingSearch(true);
+        setSaveSearchError(null);
+        setSaveSearchSuccess(null);
+
+        try {
+            const response = await window.fetch('/user/saved-searches', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers,
+                body: JSON.stringify({
+                    name: trimmedName,
+                    criteria,
+                    alert_enabled: saveSearchAlertsEnabled,
+                }),
+            });
+
+            if (response.ok) {
+                setSaveSearchSuccess(
+                    `บันทึกการค้นหา "${trimmedName}" เรียบร้อยแล้ว`,
+                );
+                handleSaveDialogChange(false);
+
+                return;
+            }
+
+            const data = (await response.json().catch(() => null)) as {
+                message?: string;
+                errors?: Record<string, string[]>;
+            } | null;
+
+            const nameError = data?.errors?.name?.[0];
+            const criteriaError = data?.errors?.criteria?.[0];
+
+            setSaveSearchError(
+                nameError ??
+                    criteriaError ??
+                    data?.message ??
+                    'ไม่สามารถบันทึกการค้นหาได้ในขณะนี้',
+            );
+        } finally {
+            setIsSavingSearch(false);
+        }
     };
 
     const toggleFilter = (
@@ -385,29 +509,31 @@ export default function ProcurementSearch() {
                                         หน่วยงาน / ภาคส่วน
                                     </h4>
                                     <div className="custom-scrollbar max-h-48 space-y-2 overflow-y-auto pr-2">
-                                        {organizations.map((org) => (
-                                            <label
-                                                key={org}
-                                                className="group flex cursor-pointer items-start gap-3"
-                                            >
-                                                <Checkbox
-                                                    checked={selectedOrganizations.includes(
-                                                        org,
-                                                    )}
-                                                    onCheckedChange={() =>
-                                                        toggleFilter(
-                                                            org,
-                                                            selectedOrganizations,
-                                                            setSelectedOrganizations,
-                                                            'organizations',
-                                                        )
-                                                    }
-                                                />
-                                                <span className="text-sm text-muted-foreground transition-colors group-hover:text-primary">
-                                                    {org}
-                                                </span>
-                                            </label>
-                                        ))}
+                                        {taxonomy.organizations.map(
+                                            (organization) => (
+                                                <label
+                                                    key={organization.value}
+                                                    className="group flex cursor-pointer items-start gap-3"
+                                                >
+                                                    <Checkbox
+                                                        checked={selectedOrganizations.includes(
+                                                            organization.value,
+                                                        )}
+                                                        onCheckedChange={() =>
+                                                            toggleFilter(
+                                                                organization.value,
+                                                                selectedOrganizations,
+                                                                setSelectedOrganizations,
+                                                                'organizations',
+                                                            )
+                                                        }
+                                                    />
+                                                    <span className="text-sm text-muted-foreground transition-colors group-hover:text-primary">
+                                                        {organization.label}
+                                                    </span>
+                                                </label>
+                                            ),
+                                        )}
                                     </div>
                                 </div>
 
@@ -416,18 +542,18 @@ export default function ProcurementSearch() {
                                         วิธีการจัดซื้อจัดจ้าง
                                     </h4>
                                     <div className="space-y-2">
-                                        {methods.map((method) => (
+                                        {taxonomy.methods.map((method) => (
                                             <label
-                                                key={method}
+                                                key={method.value}
                                                 className="group flex cursor-pointer items-center gap-3"
                                             >
                                                 <Checkbox
                                                     checked={selectedMethods.includes(
-                                                        method,
+                                                        method.value,
                                                     )}
                                                     onCheckedChange={() =>
                                                         toggleFilter(
-                                                            method,
+                                                            method.value,
                                                             selectedMethods,
                                                             setSelectedMethods,
                                                             'methods',
@@ -435,7 +561,7 @@ export default function ProcurementSearch() {
                                                     }
                                                 />
                                                 <span className="text-sm text-muted-foreground transition-colors group-hover:text-primary">
-                                                    {method}
+                                                    {method.label}
                                                 </span>
                                             </label>
                                         ))}
@@ -447,18 +573,18 @@ export default function ProcurementSearch() {
                                         หมวดหมู่ / ประเภทงาน
                                     </h4>
                                     <div className="space-y-2">
-                                        {categories.map((cat) => (
+                                        {taxonomy.categories.map((category) => (
                                             <label
-                                                key={cat}
+                                                key={category.value}
                                                 className="group flex cursor-pointer items-center gap-3"
                                             >
                                                 <Checkbox
                                                     checked={selectedCategories.includes(
-                                                        cat,
+                                                        category.value,
                                                     )}
                                                     onCheckedChange={() =>
                                                         toggleFilter(
-                                                            cat,
+                                                            category.value,
                                                             selectedCategories,
                                                             setSelectedCategories,
                                                             'categories',
@@ -466,7 +592,7 @@ export default function ProcurementSearch() {
                                                     }
                                                 />
                                                 <span className="text-sm text-muted-foreground transition-colors group-hover:text-primary">
-                                                    {cat}
+                                                    {category.label}
                                                 </span>
                                             </label>
                                         ))}
@@ -493,7 +619,7 @@ export default function ProcurementSearch() {
                                             variant="secondary"
                                             className="gap-1.5 border border-primary/20 bg-primary/5 text-primary"
                                         >
-                                            {filter.value}
+                                            {filter.label}
                                             <button
                                                 type="button"
                                                 onClick={filter.onRemove}
@@ -512,36 +638,66 @@ export default function ProcurementSearch() {
                                         </button>
                                     )}
                                 </div>
+                                {saveSearchSuccess && (
+                                    <p
+                                        className="text-sm font-medium text-emerald-600"
+                                        data-test="procurement-save-search-success"
+                                    >
+                                        {saveSearchSuccess}{' '}
+                                        <Link
+                                            href="/user/saved-searches"
+                                            className="underline underline-offset-4"
+                                        >
+                                            ดูรายการที่บันทึกไว้
+                                        </Link>
+                                    </p>
+                                )}
                             </div>
-                            <Select
-                                value={sortBy}
-                                onValueChange={(value) => {
-                                    const next = value as SortValue;
-                                    setSortBy(next);
-                                    submitFilters({
-                                        ...criteria,
-                                        sortBy: next,
-                                    });
-                                }}
-                            >
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="เรียงตาม" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="latest">
-                                        ใหม่ล่าสุด
-                                    </SelectItem>
-                                    <SelectItem value="deadline">
-                                        กำหนดส่งใกล้สุด
-                                    </SelectItem>
-                                    <SelectItem value="budget-high">
-                                        งบประมาณสูงสุด
-                                    </SelectItem>
-                                    <SelectItem value="budget-low">
-                                        งบประมาณต่ำสุด
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                {canCreateSavedSearch && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="gap-2"
+                                        data-test="procurement-save-search-trigger"
+                                        onClick={() =>
+                                            handleSaveDialogChange(true)
+                                        }
+                                    >
+                                        <BookmarkPlus className="h-4 w-4" />
+                                        บันทึกการค้นหานี้
+                                    </Button>
+                                )}
+                                <Select
+                                    value={sortBy}
+                                    onValueChange={(value) => {
+                                        const next = value as SortValue;
+                                        setSortBy(next);
+                                        submitFilters({
+                                            ...criteria,
+                                            sortBy: next,
+                                        });
+                                    }}
+                                >
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="เรียงตาม" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="latest">
+                                            ใหม่ล่าสุด
+                                        </SelectItem>
+                                        <SelectItem value="deadline">
+                                            กำหนดส่งใกล้สุด
+                                        </SelectItem>
+                                        <SelectItem value="budget-high">
+                                            งบประมาณสูงสุด
+                                        </SelectItem>
+                                        <SelectItem value="budget-low">
+                                            งบประมาณต่ำสุด
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
@@ -579,7 +735,9 @@ export default function ProcurementSearch() {
                                             <div className="flex items-center gap-1.5">
                                                 <Gavel className="h-4 w-4 text-amber-500" />
                                                 <span>
-                                                    {announcement.method}
+                                                    {taxonomy.methodLabels[
+                                                        announcement.method
+                                                    ] ?? announcement.method}
                                                 </span>
                                             </div>
                                         </div>
@@ -603,7 +761,9 @@ export default function ProcurementSearch() {
                                                     </p>
                                                     <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                                                         <CalendarDays className="h-4 w-4" />
-                                                        {formatDate(announcement.deadline)}
+                                                        {formatDate(
+                                                            announcement.deadline,
+                                                        )}
                                                     </p>
                                                 </div>
                                             </div>
@@ -647,6 +807,87 @@ export default function ProcurementSearch() {
                     </div>
                 </div>
             </div>
+
+            <Dialog
+                open={isSaveDialogOpen}
+                onOpenChange={handleSaveDialogChange}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>บันทึกการค้นหาปัจจุบัน</DialogTitle>
+                        <DialogDescription>
+                            ตั้งชื่อและเลือกการแจ้งเตือนสำหรับเงื่อนไขที่กำลังค้นหาอยู่ในตอนนี้
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="saved-search-name">
+                                ชื่อการค้นหา
+                            </Label>
+                            <Input
+                                id="saved-search-name"
+                                value={saveSearchName}
+                                onChange={(event) => {
+                                    setSaveSearchName(event.target.value);
+                                    if (saveSearchError) {
+                                        setSaveSearchError(null);
+                                    }
+                                }}
+                                placeholder="เช่น งานก่อสร้างเทศบาลที่สนใจ"
+                                data-test="procurement-save-search-name"
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <Label
+                                    htmlFor="saved-search-alert-enabled"
+                                    className="text-base"
+                                >
+                                    เปิดการแจ้งเตือน
+                                </Label>
+                                <p className="text-sm text-muted-foreground">
+                                    แจ้งเมื่อมีประกาศใหม่ที่ตรงกับเงื่อนไขนี้
+                                </p>
+                            </div>
+                            <Switch
+                                id="saved-search-alert-enabled"
+                                checked={saveSearchAlertsEnabled}
+                                onCheckedChange={setSaveSearchAlertsEnabled}
+                                data-test="procurement-save-search-alert-enabled"
+                            />
+                        </div>
+                        {saveSearchError && (
+                            <p
+                                className="text-sm font-medium text-destructive"
+                                data-test="procurement-save-search-error"
+                            >
+                                {saveSearchError}
+                            </p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleSaveDialogChange(false)}
+                            disabled={isSavingSearch}
+                        >
+                            ยกเลิก
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleCreateSavedSearch}
+                            disabled={isSavingSearch}
+                            data-test="procurement-save-search-submit"
+                        >
+                            {isSavingSearch && (
+                                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            บันทึกการค้นหา
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppHeaderLayout>
     );
 }

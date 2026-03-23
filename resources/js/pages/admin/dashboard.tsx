@@ -1,6 +1,5 @@
 import { Head, router, Link, useForm } from '@inertiajs/react';
 import {
-    Bell,
     ChevronDown,
     Edit2,
     Eye,
@@ -15,7 +14,6 @@ import {
     Users,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -37,7 +35,13 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import * as announcementRoutes from '@/routes/admin/announcements';
 import * as adminRoutes from '@/routes/admin';
 import * as userRoutes from '@/routes/admin/users';
@@ -71,9 +75,16 @@ type Stats = {
     total_users: number;
 };
 
+type TaxonomyOption = { value: string; label: string };
+
 interface AdminDashboardProps {
     announcements: PaginatedData<Announcement>;
     stats: Stats;
+    taxonomy: {
+        organizations: TaxonomyOption[];
+        methods: TaxonomyOption[];
+        categories: TaxonomyOption[];
+    };
 }
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
@@ -82,24 +93,31 @@ type AnnouncementModalProps = {
     isOpen: boolean;
     onClose: () => void;
     announcement?: Announcement | null;
+    taxonomy: AdminDashboardProps['taxonomy'];
 };
 
-function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalProps) {
+function AnnouncementModal({
+    isOpen,
+    onClose,
+    announcement,
+    taxonomy,
+}: AnnouncementModalProps) {
     const isEdit = !!announcement;
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
-        _method: isEdit ? 'PUT' : 'POST',
-        title: '',
-        description: '',
-        organization: '',
-        method: 'open_tender',
-        category: 'goods',
-        budget: 0,
-        deadline: '',
-        status: 'open',
-        publication_status: 'draft',
-        attachment: null as File | null,
-    });
+    const { data, setData, post, processing, errors, reset, clearErrors } =
+        useForm({
+            _method: isEdit ? 'PUT' : 'POST',
+            title: '',
+            description: '',
+            organization: '',
+            method: 'e-bidding',
+            category: 'goods',
+            budget: 0,
+            deadline: '',
+            status: 'open',
+            publication_status: 'draft',
+            attachment: null as File | null,
+        });
 
     useEffect(() => {
         if (isOpen) {
@@ -108,10 +126,12 @@ function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalP
                 title: announcement?.title || '',
                 description: announcement?.description || '',
                 organization: announcement?.organization || '',
-                method: announcement?.method || 'open_tender',
+                method: announcement?.method || 'e-bidding',
                 category: announcement?.category || 'goods',
                 budget: announcement?.budget || 0,
-                deadline: announcement?.deadline ? announcement.deadline.split('T')[0].split(' ')[0] : '',
+                deadline: announcement?.deadline
+                    ? announcement.deadline.split('T')[0].split(' ')[0]
+                    : '',
                 status: announcement?.status || 'open',
                 publication_status: announcement?.publication_status || 'draft',
                 attachment: null,
@@ -143,39 +163,74 @@ function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalP
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? 'แก้ไขประกาศ' : 'เพิ่มประกาศใหม่'}</DialogTitle>
+                    <DialogTitle>
+                        {isEdit ? 'แก้ไขประกาศ' : 'เพิ่มประกาศใหม่'}
+                    </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2 col-span-2">
+                        <div className="col-span-2 space-y-2">
                             <Label htmlFor="title">ชื่อโครงการ</Label>
                             <Input
                                 id="title"
                                 value={data.title}
-                                onChange={(e) => setData('title', e.target.value)}
+                                onChange={(e) =>
+                                    setData('title', e.target.value)
+                                }
                             />
-                            {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+                            {errors.title && (
+                                <p className="text-sm text-destructive">
+                                    {errors.title}
+                                </p>
+                            )}
                         </div>
-                        <div className="space-y-2 col-span-2">
+                        <div className="col-span-2 space-y-2">
                             <Label htmlFor="description">รายละเอียด</Label>
                             <textarea
                                 id="description"
-                                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                 value={data.description}
-                                onChange={(e) => setData('description', e.target.value)}
+                                onChange={(e) =>
+                                    setData('description', e.target.value)
+                                }
                             />
-                            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+                            {errors.description && (
+                                <p className="text-sm text-destructive">
+                                    {errors.description}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="organization">หน่วยงาน</Label>
-                            <Input
-                                id="organization"
+                            <Select
                                 value={data.organization}
-                                onChange={(e) => setData('organization', e.target.value)}
-                            />
-                            {errors.organization && <p className="text-sm text-destructive">{errors.organization}</p>}
+                                onValueChange={(value) =>
+                                    setData('organization', value)
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกหน่วยงาน" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {taxonomy.organizations.map(
+                                        (organization) => (
+                                            <SelectItem
+                                                key={organization.value}
+                                                value={organization.value}
+                                            >
+                                                {organization.label}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            {errors.organization && (
+                                <p className="text-sm text-destructive">
+                                    {errors.organization}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="budget">งบประมาณ</Label>
@@ -183,38 +238,73 @@ function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalP
                                 id="budget"
                                 type="number"
                                 value={data.budget}
-                                onChange={(e) => setData('budget', Number(e.target.value))}
+                                onChange={(e) =>
+                                    setData('budget', Number(e.target.value))
+                                }
                             />
-                            {errors.budget && <p className="text-sm text-destructive">{errors.budget}</p>}
+                            {errors.budget && (
+                                <p className="text-sm text-destructive">
+                                    {errors.budget}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="method">วิธีการจัดซื้อจัดจ้าง</Label>
-                            <Select value={data.method} onValueChange={(value) => setData('method', value)}>
+                            <Label htmlFor="method">
+                                วิธีการจัดซื้อจัดจ้าง
+                            </Label>
+                            <Select
+                                value={data.method}
+                                onValueChange={(value) =>
+                                    setData('method', value)
+                                }
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="เลือกวิธี" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="open_tender">ประกวดราคาอิเล็กทรอนิกส์ (e-bidding)</SelectItem>
-                                    <SelectItem value="selective_tender">คัดเลือก</SelectItem>
-                                    <SelectItem value="specific_method">เฉพาะเจาะจง</SelectItem>
+                                    {taxonomy.methods.map((method) => (
+                                        <SelectItem
+                                            key={method.value}
+                                            value={method.value}
+                                        >
+                                            {method.label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
-                            {errors.method && <p className="text-sm text-destructive">{errors.method}</p>}
+                            {errors.method && (
+                                <p className="text-sm text-destructive">
+                                    {errors.method}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="category">หมวดหมู่</Label>
-                            <Select value={data.category} onValueChange={(value) => setData('category', value)}>
+                            <Select
+                                value={data.category}
+                                onValueChange={(value) =>
+                                    setData('category', value)
+                                }
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="เลือกหมวดหมู่" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="goods">ซื้อ</SelectItem>
-                                    <SelectItem value="construction">จ้างก่อสร้าง</SelectItem>
-                                    <SelectItem value="services">จ้างทำของ/จ้างเหมาบริการ</SelectItem>
-                                    <SelectItem value="consulting">จ้างที่ปรึกษา</SelectItem>
+                                    {taxonomy.categories.map((category) => (
+                                        <SelectItem
+                                            key={category.value}
+                                            value={category.value}
+                                        >
+                                            {category.label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
-                            {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
+                            {errors.category && (
+                                <p className="text-sm text-destructive">
+                                    {errors.category}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="deadline">วันสิ้นสุด</Label>
@@ -222,52 +312,99 @@ function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalP
                                 id="deadline"
                                 type="date"
                                 value={data.deadline}
-                                onChange={(e) => setData('deadline', e.target.value)}
+                                onChange={(e) =>
+                                    setData('deadline', e.target.value)
+                                }
                             />
-                            {errors.deadline && <p className="text-sm text-destructive">{errors.deadline}</p>}
+                            {errors.deadline && (
+                                <p className="text-sm text-destructive">
+                                    {errors.deadline}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="status">สถานะ</Label>
-                            <Select value={data.status} onValueChange={(value) => setData('status', value)}>
+                            <Select
+                                value={data.status}
+                                onValueChange={(value) =>
+                                    setData('status', value)
+                                }
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="เลือกสถานะ" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="open">เปิดรับข้อเสนอ</SelectItem>
+                                    <SelectItem value="open">
+                                        เปิดรับข้อเสนอ
+                                    </SelectItem>
                                     <SelectItem value="urgent">ด่วน</SelectItem>
-                                    <SelectItem value="closing">ใกล้ปิดรับ</SelectItem>
-                                    <SelectItem value="closed">ปิดรับแล้ว</SelectItem>
+                                    <SelectItem value="closing">
+                                        ใกล้ปิดรับ
+                                    </SelectItem>
+                                    <SelectItem value="closed">
+                                        ปิดรับแล้ว
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
-                            {errors.status && <p className="text-sm text-destructive">{errors.status}</p>}
+                            {errors.status && (
+                                <p className="text-sm text-destructive">
+                                    {errors.status}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="publication_status">สถานะการเผยแพร่</Label>
-                            <Select value={data.publication_status} onValueChange={(value) => setData('publication_status', value)}>
+                            <Label htmlFor="publication_status">
+                                สถานะการเผยแพร่
+                            </Label>
+                            <Select
+                                value={data.publication_status}
+                                onValueChange={(value) =>
+                                    setData('publication_status', value)
+                                }
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="เลือกสถานะการเผยแพร่" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="draft">ร่าง</SelectItem>
-                                    <SelectItem value="published">เผยแพร่</SelectItem>
+                                    <SelectItem value="published">
+                                        เผยแพร่
+                                    </SelectItem>
                                     <SelectItem value="hidden">ซ่อน</SelectItem>
                                 </SelectContent>
                             </Select>
-                            {errors.publication_status && <p className="text-sm text-destructive">{errors.publication_status}</p>}
+                            {errors.publication_status && (
+                                <p className="text-sm text-destructive">
+                                    {errors.publication_status}
+                                </p>
+                            )}
                         </div>
-                        <div className="space-y-2 col-span-2">
+                        <div className="col-span-2 space-y-2">
                             <Label htmlFor="attachment">เอกสารแนบ (PDF)</Label>
                             <Input
                                 id="attachment"
                                 type="file"
                                 accept="application/pdf"
-                                onChange={(e) => setData('attachment', e.target.files?.[0] || null)}
+                                onChange={(e) =>
+                                    setData(
+                                        'attachment',
+                                        e.target.files?.[0] || null,
+                                    )
+                                }
                             />
-                            {errors.attachment && <p className="text-sm text-destructive">{errors.attachment}</p>}
+                            {errors.attachment && (
+                                <p className="text-sm text-destructive">
+                                    {errors.attachment}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onClose}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                        >
                             ยกเลิก
                         </Button>
                         <Button type="submit" disabled={processing}>
@@ -280,11 +417,16 @@ function AnnouncementModal({ isOpen, onClose, announcement }: AnnouncementModalP
     );
 }
 
-
-export default function AdminDashboard({ announcements, stats }: AdminDashboardProps) {
+export default function AdminDashboard({
+    announcements,
+    stats,
+    taxonomy,
+}: AdminDashboardProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+    const [editingAnnouncement, setEditingAnnouncement] =
+        useState<Announcement | null>(null);
 
     const handleCreate = () => {
         setEditingAnnouncement(null);
@@ -368,7 +510,11 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
             header: 'วันที่ประกาศ',
             cell: (item) => (
                 <span className="text-muted-foreground">
-                    {item.published_at ? new Date(item.published_at).toLocaleDateString('th-TH') : '-'}
+                    {item.published_at
+                        ? new Date(item.published_at).toLocaleDateString(
+                              'th-TH',
+                          )
+                        : '-'}
                 </span>
             ),
         },
@@ -406,7 +552,11 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        title={item.publication_status === 'published' ? 'ซ่อน' : 'เผยแพร่'}
+                        title={
+                            item.publication_status === 'published'
+                                ? 'ซ่อน'
+                                : 'เผยแพร่'
+                        }
                         onClick={() => handlePublishToggle(item)}
                         data-test="admin-announcement-publish"
                     >
@@ -434,11 +584,12 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
 
     const filteredAnnouncements = announcements.data.filter(
         (item) =>
-            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.organization
-                ?.toLowerCase()
-                .includes(searchQuery.toLowerCase()) ||
-            item.id.toString().includes(searchQuery),
+            (item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.organization
+                    ?.toLowerCase()
+                    .includes(searchQuery.toLowerCase()) ||
+                item.id.toString().includes(searchQuery)) &&
+            (statusFilter === 'all' || item.status === statusFilter),
     );
     return (
         <AppHeaderLayout>
@@ -459,13 +610,20 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                             </p>
                         </div>
                         <div className="flex gap-2">
-                            <Button asChild variant="outline" className="gap-2 shadow-sm">
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="gap-2 shadow-sm"
+                            >
                                 <Link href={userRoutes.index.url()}>
                                     <Users className="h-4 w-4" />
                                     จัดการผู้ใช้งาน
                                 </Link>
                             </Button>
-                            <Button className="gap-2 shadow-sm" onClick={handleCreate}>
+                            <Button
+                                className="gap-2 shadow-sm"
+                                onClick={handleCreate}
+                            >
                                 <Plus className="h-4 w-4" />
                                 เพิ่มประกาศใหม่
                             </Button>
@@ -537,14 +695,35 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuItem>ทั้งหมด</DropdownMenuItem>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => setStatusFilter('all')}
+                                    >
+                                        ทั้งหมด
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => setStatusFilter('open')}
+                                    >
                                         เปิดรับข้อเสนอ
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                        รอตรวจสอบ
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setStatusFilter('urgent')
+                                        }
+                                    >
+                                        ด่วน
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setStatusFilter('closing')
+                                        }
+                                    >
+                                        ใกล้ปิดรับ
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setStatusFilter('closed')
+                                        }
+                                    >
                                         ปิดรับแล้ว
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -557,9 +736,11 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                                 data={filteredAnnouncements}
                                 columns={columns}
                                 emptyMessage="ไม่พบประกาศที่ตรงกับการค้นหา"
-                                getRowProps={(item) => ({
-                                    'data-test': 'admin-announcement-row',
-                                } as React.HTMLAttributes<HTMLTableRowElement>)}
+                                getRowProps={(item) =>
+                                    ({
+                                        'data-test': 'admin-announcement-row',
+                                    }) as React.HTMLAttributes<HTMLTableRowElement>
+                                }
                             />
                         </div>
                         <div className="mt-6 flex items-center justify-between">
@@ -574,7 +755,7 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                                     router.get(
                                         adminRoutes.dashboard.url(),
                                         { page },
-                                        { preserveState: true }
+                                        { preserveState: true },
                                     );
                                 }}
                             />
@@ -586,6 +767,7 @@ export default function AdminDashboard({ announcements, stats }: AdminDashboardP
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 announcement={editingAnnouncement}
+                taxonomy={taxonomy}
             />
         </AppHeaderLayout>
     );

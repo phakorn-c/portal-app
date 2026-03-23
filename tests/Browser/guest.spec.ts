@@ -1,63 +1,12 @@
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-
-const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
-const databasePath = fileURLToPath(
-    new URL('../../database/database.sqlite', import.meta.url),
-);
-const artisanEnv = {
-    ...process.env,
-    APP_ENV: 'testing',
-    DB_CONNECTION: 'sqlite',
-    DB_DATABASE: databasePath,
-    SESSION_DRIVER: 'file',
-    CACHE_STORE: 'file',
-    QUEUE_CONNECTION: 'sync',
-};
-
-function artisan(...args: string[]) {
-    return execFileSync('php', ['artisan', ...args], {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        env: artisanEnv,
-    });
-}
-
-function resetDatabase() {
-    artisan('migrate:fresh', '--seed', '--force');
-}
-
-function createPublishedAnnouncement() {
-    const output = artisan(
-        'tinker',
-        '--execute',
-        `
-            $announcement = \\App\\Models\\Announcement::factory()->published()->create([
-                'title' => 'Playwright Guest Procurement Notice',
-                'organization' => 'Khon Kaen Playwright Office',
-                'category' => 'Construction',
-                'method' => 'e-bidding',
-                'status' => 'open',
-                'budget' => 250000,
-                'deadline' => now()->addDays(14)->format('Y-m-d'),
-            ]);
-
-            print(json_encode([
-                'id' => $announcement->id,
-                'title' => $announcement->title,
-            ]));
-        `,
-    ).trim();
-
-    return JSON.parse(output) as { id: number; title: string };
-}
 
 test('guest can search procurement and open an announcement detail page', async ({
     page,
 }) => {
-    resetDatabase();
-    const announcement = createPublishedAnnouncement();
+    const announcement = {
+        id: 1,
+        title: 'Khon Kaen Smart Traffic Upgrade',
+    };
 
     await page.goto('/procurement');
 
@@ -86,6 +35,15 @@ test('guest can search procurement and open an announcement detail page', async 
     ).toBeVisible();
     await expect(
         page.getByText('รายละเอียดประกาศจัดซื้อจัดจ้าง'),
+    ).toBeVisible();
+    await expect(
+        page.getByRole('heading', { name: 'เอกสารข้อกำหนด (TOR)' }),
+    ).toBeVisible();
+    await expect(
+        page.getByRole('link', { name: 'ดาวน์โหลดเอกสาร PDF' }),
+    ).toBeVisible();
+    await expect(
+        page.locator('iframe[title="Smart-Traffic-TOR-demo.pdf"]'),
     ).toBeVisible();
     await expect(page.locator('button:has(svg.lucide-bookmark)')).toHaveCount(
         0,

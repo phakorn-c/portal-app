@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Announcement;
+use App\Support\Procurement\Taxonomy;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class AnnouncementFactory extends Factory
@@ -13,9 +14,9 @@ class AnnouncementFactory extends Factory
     {
         return [
             'title' => fake()->sentence(6),
-            'organization' => fake()->company(),
-            'category' => fake()->randomElement(['Construction', 'IT Services', 'Office Supplies']),
-            'method' => fake()->randomElement(['e-bidding', 'specific method', 'selection']),
+            'organization' => fake()->randomElement(Taxonomy::organizations()),
+            'category' => fake()->randomElement(array_keys(Taxonomy::categories())),
+            'method' => fake()->randomElement(array_keys(Taxonomy::methods())),
             'budget' => fake()->randomFloat(2, 10000, 5000000),
             'location' => fake()->optional()->city(),
             'reference_price' => fake()->optional()->randomFloat(2, 5000, 4500000),

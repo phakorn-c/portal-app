@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $demoPassword = Hash::make('password');
 
+        // Explicitly set admin user role
         DB::table('users')->updateOrInsert(
             ['email' => 'admin@example.com'],
             [
@@ -29,6 +30,12 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        // Ensure the admin role is set correctly even if user existed
+        DB::table('users')
+            ->where('email', 'admin@example.com')
+            ->update(['role' => 'admin']);
+
+        // Explicitly set registered user role
         DB::table('users')->updateOrInsert(
             ['email' => 'test@example.com'],
             [
@@ -40,6 +47,11 @@ class DatabaseSeeder extends Seeder
                 'updated_at' => '2026-03-22 09:05:00',
             ],
         );
+
+        // Ensure the registered user role is set correctly even if user existed
+        DB::table('users')
+            ->where('email', 'test@example.com')
+            ->update(['role' => 'registered']);
 
         $testUser = User::where('email', 'test@example.com')->first();
         if ($testUser) {

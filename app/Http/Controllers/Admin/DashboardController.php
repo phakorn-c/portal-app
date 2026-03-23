@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\User;
+use App\Support\Procurement\Taxonomy;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -25,6 +26,7 @@ class DashboardController extends Controller
         return Inertia::render('admin/dashboard', [
             'announcements' => $announcements,
             'stats' => $stats,
+            'taxonomy' => Taxonomy::forInertia(),
         ]);
     }
 }

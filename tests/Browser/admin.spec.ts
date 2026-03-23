@@ -35,8 +35,8 @@ function createAdminFixtures() {
         `
             \\App\\Models\\Announcement::factory()->published()->create([
                 'title' => 'Playwright Admin Procurement Notice',
-                'organization' => 'Khon Kaen Admin Office',
-                'category' => 'Construction',
+                'organization' => 'เทศบาลนครขอนแก่น',
+                'category' => 'construction',
                 'method' => 'e-bidding',
                 'status' => 'open',
                 'budget' => 550000,

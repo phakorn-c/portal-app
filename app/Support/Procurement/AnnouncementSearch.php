@@ -13,10 +13,11 @@ class AnnouncementSearch
 
         $keyword = trim((string) ($criteria['query'] ?? ''));
         if ($keyword !== '') {
-            $query->where(function (Builder $builder) use ($keyword): void {
+            $lowerKeyword = mb_strtolower($keyword);
+            $query->where(function (Builder $builder) use ($lowerKeyword): void {
                 $builder
-                    ->where('title', 'ILIKE', "%{$keyword}%")
-                    ->orWhere('description', 'ILIKE', "%{$keyword}%");
+                    ->whereRaw('LOWER(title) LIKE ?', ["%{$lowerKeyword}%"])
+                    ->orWhereRaw('LOWER(description) LIKE ?', ["%{$lowerKeyword}%"]);
             });
         }
 

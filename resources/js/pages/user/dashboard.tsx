@@ -314,9 +314,12 @@ export default function UserDashboard({
                                             variant="outline"
                                             size="sm"
                                             className="gap-1"
+                                            asChild
                                         >
-                                            <Plus className="h-4 w-4" />
-                                            เพิ่มใหม่
+                                            <Link href="/procurement">
+                                                <Plus className="h-4 w-4" />
+                                                เพิ่มใหม่
+                                            </Link>
                                         </Button>
                                     </CardHeader>
                                     <CardContent>

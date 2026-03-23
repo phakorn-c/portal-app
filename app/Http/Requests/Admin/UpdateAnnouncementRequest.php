@@ -2,18 +2,28 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Procurement\Taxonomy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateAnnouncementRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'organization' => $this->has('organization')
+                ? preg_replace('/\s+/', ' ', trim($this->input('organization')))
+                : null,
+        ]);
+    }
+
     public function rules(): array
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'organization' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string'],
-            'method' => ['required', 'string'],
+            'organization' => ['required', Rule::in(Taxonomy::organizations())],
+            'category' => ['required', Rule::in(array_keys(Taxonomy::categories()))],
+            'method' => ['required', Rule::in(array_keys(Taxonomy::methods()))],
             'budget' => ['required', 'numeric', 'min:0'],
             'location' => ['nullable', 'string', 'max:255'],
             'reference_price' => ['nullable', 'numeric', 'min:0'],
