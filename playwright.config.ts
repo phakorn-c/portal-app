@@ -1,10 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const webServerEnv = Object.fromEntries(
-    Object.entries(process.env).filter(
-        (entry): entry is [string, string] => typeof entry[1] === 'string',
-    ),
-);
+import { testingEnv } from './tests/Browser/support/test-environment';
 
 export default defineConfig({
     testDir: './tests/Browser',
@@ -27,8 +23,8 @@ export default defineConfig({
         command:
             'php artisan optimize:clear && ' +
             'php artisan migrate:fresh --seed && ' +
-            'php artisan serve --host=127.0.0.1 --port=8000',
-        env: webServerEnv,
+            'php artisan serve --host=127.0.0.1 --port=8000 --no-reload',
+        env: testingEnv,
         url: 'http://localhost:8000',
         reuseExistingServer: false,
         timeout: 120_000,

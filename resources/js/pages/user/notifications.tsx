@@ -423,7 +423,9 @@ export default function NotificationSettings() {
                                             </div>
                                             <Switch
                                                 data-test="notification-channel-email"
-                                                checked={currentPreferences.email_enabled}
+                                                checked={
+                                                    currentPreferences.email_enabled
+                                                }
                                                 onCheckedChange={(checked) =>
                                                     updatePreference({
                                                         ...currentPreferences,
@@ -449,7 +451,9 @@ export default function NotificationSettings() {
                                             </div>
                                             <Switch
                                                 data-test="notification-channel-in-app"
-                                                checked={currentPreferences.website_enabled}
+                                                checked={
+                                                    currentPreferences.website_enabled
+                                                }
                                                 onCheckedChange={(checked) =>
                                                     updatePreference({
                                                         ...currentPreferences,

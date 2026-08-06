@@ -17,7 +17,6 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Timeline, type TimelineItem } from '@/components/ui/timeline';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
-import type { FilterState } from '@/types/procurement';
 
 const sidebarNav = [
     {
@@ -58,39 +57,54 @@ const sidebarNav = [
     },
 ];
 
-function formatBudget(amount: number) {
-    return amount.toLocaleString('th-TH');
+function formatBudget(amount: number | string) {
+    const budget =
+        typeof amount === 'number' ? amount : Number.parseFloat(amount) || 0;
+
+    return budget.toLocaleString('th-TH');
 }
-function serializeCriteria(
-    criteria: FilterState | Record<string, any>,
-): string {
+function serializeCriteria(criteria: Record<string, unknown>): string {
     const params = new URLSearchParams();
-    if (criteria.query) params.set('query', criteria.query as string);
-    if ('keyword' in criteria && (criteria as any).keyword)
-        params.set('keyword', (criteria as any).keyword as string);
+    if (typeof criteria.query === 'string') params.set('query', criteria.query);
+    if (typeof criteria.keyword === 'string')
+        params.set('keyword', criteria.keyword);
     if (Array.isArray(criteria.organizations)) {
-        criteria.organizations.forEach((val: string) =>
-            params.append('organization[]', val),
+        criteria.organizations.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('organization[]', val)
+                : undefined,
         );
     }
     if (Array.isArray(criteria.methods)) {
-        criteria.methods.forEach((val: string) =>
-            params.append('method[]', val),
+        criteria.methods.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('method[]', val)
+                : undefined,
         );
     }
     if (Array.isArray(criteria.categories)) {
-        criteria.categories.forEach((val: string) =>
-            params.append('category[]', val),
+        criteria.categories.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('category[]', val)
+                : undefined,
         );
     }
-    if (criteria.budgetRange?.[0] > 0) {
+    if (
+        Array.isArray(criteria.budgetRange) &&
+        typeof criteria.budgetRange[0] === 'number' &&
+        criteria.budgetRange[0] > 0
+    ) {
         params.set('budget_min', String(criteria.budgetRange[0]));
     }
-    if (criteria.budgetRange?.[1] > 0) {
+    if (
+        Array.isArray(criteria.budgetRange) &&
+        typeof criteria.budgetRange[1] === 'number' &&
+        criteria.budgetRange[1] > 0
+    ) {
         params.set('budget_max', String(criteria.budgetRange[1]));
     }
-    if (criteria.sortBy) {
-        params.set('sort', criteria.sortBy as string);
+    if (typeof criteria.sortBy === 'string') {
+        params.set('sort', criteria.sortBy);
     }
     return params.toString();
 }
@@ -121,6 +135,32 @@ function formatActivityDate(dateString: string) {
     );
 }
 
+type SerializedAnnouncement = {
+    id: number;
+    title: string;
+    organization: string;
+    budget: number | string;
+    status: 'open' | 'urgent' | 'closing' | 'closed';
+};
+
+type SerializedListingHistory = {
+    id: number;
+    viewed_at: string;
+    announcement: SerializedAnnouncement;
+};
+
+type SerializedSavedSearch = {
+    id: number;
+    name: string;
+    criteria: Record<string, unknown>;
+};
+
+type SerializedActivity = {
+    date: string;
+    title: string;
+    description: string;
+};
+
 export default function UserDashboard({
     savedSearchCount,
     recentSavedSearches,
@@ -130,11 +170,11 @@ export default function UserDashboard({
     activities,
 }: {
     savedSearchCount: number;
-    recentSavedSearches: any[];
-    listingHistory: any[];
+    recentSavedSearches: SerializedSavedSearch[];
+    listingHistory: SerializedListingHistory[];
     searchHistoryCount: number;
     notificationCount: number;
-    activities: any[];
+    activities: SerializedActivity[];
 }) {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;

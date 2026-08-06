@@ -3,27 +3,19 @@ import {
     Bell,
     Bookmark,
     ChevronRight,
-    Clock,
-    Download,
-    Eye,
     FileText,
     History,
     LayoutDashboard,
-    Plus,
-    Settings,
-    TrendingUp,
-    User,
     Search,
+    Settings,
+    User,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
-import type { FilterState } from '@/types/procurement';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Pagination } from '@/components/ui/pagination';
 
 const sidebarNav = [
     {
@@ -64,40 +56,91 @@ const sidebarNav = [
     },
 ];
 
-function formatBudget(amount: number) {
-    return amount.toLocaleString('th-TH');
+function formatBudget(amount: number | string) {
+    const budget =
+        typeof amount === 'number' ? amount : Number.parseFloat(amount) || 0;
+
+    return budget.toLocaleString('th-TH');
 }
-function serializeCriteria(criteria: FilterState | Record<string, any>): string {
+function serializeCriteria(criteria: Record<string, unknown>): string {
     const params = new URLSearchParams();
-    if (criteria.query) params.set('query', criteria.query as string);
-    if ('keyword' in criteria && (criteria as any).keyword) params.set('keyword', (criteria as any).keyword as string);
+    if (typeof criteria.query === 'string') params.set('query', criteria.query);
+    if (typeof criteria.keyword === 'string')
+        params.set('keyword', criteria.keyword);
     if (Array.isArray(criteria.organizations)) {
-        criteria.organizations.forEach((val: string) => params.append('organization[]', val));
+        criteria.organizations.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('organization[]', val)
+                : undefined,
+        );
     }
     if (Array.isArray(criteria.methods)) {
-        criteria.methods.forEach((val: string) => params.append('method[]', val));
+        criteria.methods.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('method[]', val)
+                : undefined,
+        );
     }
     if (Array.isArray(criteria.categories)) {
-        criteria.categories.forEach((val: string) => params.append('category[]', val));
+        criteria.categories.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('category[]', val)
+                : undefined,
+        );
     }
-    if (criteria.budgetRange?.[0] > 0) {
+    if (
+        Array.isArray(criteria.budgetRange) &&
+        typeof criteria.budgetRange[0] === 'number' &&
+        criteria.budgetRange[0] > 0
+    ) {
         params.set('budget_min', String(criteria.budgetRange[0]));
     }
-    if (criteria.budgetRange?.[1] > 0) {
+    if (
+        Array.isArray(criteria.budgetRange) &&
+        typeof criteria.budgetRange[1] === 'number' &&
+        criteria.budgetRange[1] > 0
+    ) {
         params.set('budget_max', String(criteria.budgetRange[1]));
     }
-    if (criteria.sortBy) {
-        params.set('sort', criteria.sortBy as string);
+    if (typeof criteria.sortBy === 'string') {
+        params.set('sort', criteria.sortBy);
     }
     return params.toString();
 }
+
+type PaginatedData<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+};
+
+type HistoryListingItem = {
+    id: number;
+    viewed_at: string;
+    announcement: {
+        id: number;
+        title: string;
+        organization: string;
+        budget: number | string;
+        status: 'open' | 'urgent' | 'closing' | 'closed';
+    };
+};
+
+type HistorySearchItem = {
+    id: number;
+    criteria: Record<string, unknown>;
+    result_count: number;
+    searched_at: string;
+};
 
 export default function UserHistory({
     listingHistory,
     searchHistory,
 }: {
-    listingHistory: any;
-    searchHistory: any;
+    listingHistory: PaginatedData<HistoryListingItem>;
+    searchHistory: PaginatedData<HistorySearchItem>;
 }) {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
@@ -178,66 +221,64 @@ export default function UserHistory({
                                 <Card>
                                     <CardContent className="p-0">
                                         <div className="divide-y divide-border">
-                                            {listingHistory.data.map(
-                                                (item: any) => (
-                                                    <Link
-                                                        key={item.id}
-                                                        href={`/procurement/announcements/${item.announcement.id}`}
-                                                        className="group flex items-start gap-4 p-4 transition-colors hover:bg-muted"
-                                                        data-test="history-row"
-                                                    >
-                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                            <FileText className="h-5 w-5" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <StatusBadge
-                                                                    status={
-                                                                        item
-                                                                            .announcement
-                                                                            .status
-                                                                    }
-                                                                />
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {new Date(
-                                                                        item.viewed_at,
-                                                                    ).toLocaleDateString(
-                                                                        'th-TH',
-                                                                        {
-                                                                            year: 'numeric',
-                                                                            month: 'short',
-                                                                            day: 'numeric',
-                                                                            hour: '2-digit',
-                                                                            minute: '2-digit',
-                                                                        },
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <p className="mt-1 truncate font-medium text-foreground group-hover:text-primary">
-                                                                {
+                                            {listingHistory.data.map((item) => (
+                                                <Link
+                                                    key={item.id}
+                                                    href={`/procurement/announcements/${item.announcement.id}`}
+                                                    className="group flex items-start gap-4 p-4 transition-colors hover:bg-muted"
+                                                    data-test="history-row"
+                                                >
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                        <FileText className="h-5 w-5" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <StatusBadge
+                                                                status={
                                                                     item
                                                                         .announcement
-                                                                        .title
+                                                                        .status
                                                                 }
-                                                            </p>
-                                                            <p className="mt-0.5 text-sm text-muted-foreground">
-                                                                {
-                                                                    item
-                                                                        .announcement
-                                                                        .organization
-                                                                }{' '}
-                                                                · ฿
-                                                                {formatBudget(
-                                                                    item
-                                                                        .announcement
-                                                                        .budget,
+                                                            />
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {new Date(
+                                                                    item.viewed_at,
+                                                                ).toLocaleDateString(
+                                                                    'th-TH',
+                                                                    {
+                                                                        year: 'numeric',
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    },
                                                                 )}
-                                                            </p>
+                                                            </span>
                                                         </div>
-                                                        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
-                                                    </Link>
-                                                ),
-                                            )}
+                                                        <p className="mt-1 truncate font-medium text-foreground group-hover:text-primary">
+                                                            {
+                                                                item
+                                                                    .announcement
+                                                                    .title
+                                                            }
+                                                        </p>
+                                                        <p className="mt-0.5 text-sm text-muted-foreground">
+                                                            {
+                                                                item
+                                                                    .announcement
+                                                                    .organization
+                                                            }{' '}
+                                                            · ฿
+                                                            {formatBudget(
+                                                                item
+                                                                    .announcement
+                                                                    .budget,
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                    <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                                                </Link>
+                                            ))}
                                             {listingHistory.data.length ===
                                                 0 && (
                                                 <div className="p-8 text-center text-muted-foreground">
@@ -268,51 +309,51 @@ export default function UserHistory({
                                 <Card>
                                     <CardContent className="p-0">
                                         <div className="divide-y divide-border">
-                                            {searchHistory.data.map(
-                                                (item: any) => (
-                                                    <Link
-                                                        key={item.id}
-                                                        href={`/procurement?${serializeCriteria(item.criteria)}`}
-                                                        className="group flex items-start gap-4 p-4 transition-colors hover:bg-muted"
-                                                        data-test="history-row"
-                                                    >
-                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                            <Search className="h-5 w-5" />
+                                            {searchHistory.data.map((item) => (
+                                                <Link
+                                                    key={item.id}
+                                                    href={`/procurement?${serializeCriteria(item.criteria)}`}
+                                                    className="group flex items-start gap-4 p-4 transition-colors hover:bg-muted"
+                                                    data-test="history-row"
+                                                >
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                        <Search className="h-5 w-5" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {new Date(
+                                                                    item.searched_at,
+                                                                ).toLocaleDateString(
+                                                                    'th-TH',
+                                                                    {
+                                                                        year: 'numeric',
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    },
+                                                                )}
+                                                            </span>
                                                         </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {new Date(
-                                                                        item.searched_at,
-                                                                    ).toLocaleDateString(
-                                                                        'th-TH',
-                                                                        {
-                                                                            year: 'numeric',
-                                                                            month: 'short',
-                                                                            day: 'numeric',
-                                                                            hour: '2-digit',
-                                                                            minute: '2-digit',
-                                                                        },
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <p className="mt-1 truncate font-medium text-foreground group-hover:text-primary">
-                                                                {item.criteria
-                                                                    .query ||
-                                                                    'ค้นหาทั้งหมด'}
-                                                            </p>
-                                                            <p className="mt-0.5 text-sm text-muted-foreground">
-                                                                พบ{' '}
-                                                                {
-                                                                    item.result_count
-                                                                }{' '}
-                                                                รายการ
-                                                            </p>
-                                                        </div>
-                                                        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
-                                                    </Link>
-                                                ),
-                                            )}
+                                                        <p className="mt-1 truncate font-medium text-foreground group-hover:text-primary">
+                                                            {typeof item
+                                                                .criteria
+                                                                .query ===
+                                                            'string'
+                                                                ? item.criteria
+                                                                      .query
+                                                                : 'ค้นหาทั้งหมด'}
+                                                        </p>
+                                                        <p className="mt-0.5 text-sm text-muted-foreground">
+                                                            พบ{' '}
+                                                            {item.result_count}{' '}
+                                                            รายการ
+                                                        </p>
+                                                    </div>
+                                                    <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                                                </Link>
+                                            ))}
                                             {searchHistory.data.length ===
                                                 0 && (
                                                 <div className="p-8 text-center text-muted-foreground">

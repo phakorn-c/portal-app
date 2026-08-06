@@ -8,9 +8,9 @@ use App\Models\SavedSearch;
 use App\Support\Procurement\FilterState;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class SavedSearchController extends Controller
 {

@@ -1,5 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     BookmarkPlus,
     Building2,

@@ -1,33 +1,22 @@
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import {
     Bell,
+    BellOff,
+    BellRing,
     Bookmark,
-    ChevronRight,
-    Clock,
-    Download,
-    Eye,
+    Edit,
     FileText,
     History,
     LayoutDashboard,
     Plus,
-    Settings,
-    TrendingUp,
-    User,
     Search,
+    Settings,
     Trash2,
-    Edit,
-    BellRing,
-    BellOff,
+    User,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/status-badge';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
-import type { SharedData } from '@/types';
-import type { FilterState } from '@/types/procurement';
-import { Pagination } from '@/components/ui/pagination';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -35,11 +24,13 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { Switch } from '@/components/ui/switch';
+import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import type { SharedData } from '@/types';
 
 const sidebarNav = [
     {
@@ -79,51 +70,101 @@ const sidebarNav = [
         active: false,
     },
 ];
-function serializeCriteria(criteria: FilterState | Record<string, any>): string {
+function serializeCriteria(criteria: Record<string, unknown>): string {
     const params = new URLSearchParams();
-    if (criteria.query) params.set('query', criteria.query as string);
-    if ('keyword' in criteria && (criteria as any).keyword) params.set('keyword', (criteria as any).keyword as string);
+    if (typeof criteria.query === 'string') params.set('query', criteria.query);
+    if (typeof criteria.keyword === 'string')
+        params.set('keyword', criteria.keyword);
     if (Array.isArray(criteria.organizations)) {
-        criteria.organizations.forEach((val: string) => params.append('organization[]', val));
+        criteria.organizations.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('organization[]', val)
+                : undefined,
+        );
     }
     if (Array.isArray(criteria.methods)) {
-        criteria.methods.forEach((val: string) => params.append('method[]', val));
+        criteria.methods.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('method[]', val)
+                : undefined,
+        );
     }
     if (Array.isArray(criteria.categories)) {
-        criteria.categories.forEach((val: string) => params.append('category[]', val));
+        criteria.categories.forEach((val) =>
+            typeof val === 'string'
+                ? params.append('category[]', val)
+                : undefined,
+        );
     }
-    if (criteria.budgetRange?.[0] > 0) {
+    if (
+        Array.isArray(criteria.budgetRange) &&
+        typeof criteria.budgetRange[0] === 'number' &&
+        criteria.budgetRange[0] > 0
+    ) {
         params.set('budget_min', String(criteria.budgetRange[0]));
     }
-    if (criteria.budgetRange?.[1] > 0) {
+    if (
+        Array.isArray(criteria.budgetRange) &&
+        typeof criteria.budgetRange[1] === 'number' &&
+        criteria.budgetRange[1] > 0
+    ) {
         params.set('budget_max', String(criteria.budgetRange[1]));
     }
-    if (criteria.sortBy) {
-        params.set('sort', criteria.sortBy as string);
+    if (typeof criteria.sortBy === 'string') {
+        params.set('sort', criteria.sortBy);
     }
     return params.toString();
 }
 
+type PaginatedData<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+};
+
+type CriteriaObject = {
+    [key: string]:
+        | string
+        | number
+        | boolean
+        | null
+        | undefined
+        | CriteriaObject
+        | (string | number | boolean | null | undefined | CriteriaObject)[];
+};
+
+type SavedSearchItem = {
+    id: number | string;
+    name: string;
+    criteria: CriteriaObject;
+    alert_enabled: boolean;
+    created_at: string;
+};
+
 export default function UserSavedSearches({
     savedSearches,
 }: {
-    savedSearches: any;
+    savedSearches: PaginatedData<SavedSearchItem>;
 }) {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
 
-    const [editingSearch, setEditingSearch] = useState<any>(null);
+    const [editingSearch, setEditingSearch] = useState<SavedSearchItem | null>(
+        null,
+    );
     const [editName, setEditName] = useState('');
     const [editAlertEnabled, setEditAlertEnabled] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    const handleDelete = (id: string) => {
+    const handleDelete = (id: number | string) => {
         if (confirm('คุณแน่ใจหรือไม่ที่จะลบการค้นหานี้?')) {
             router.delete(`/user/saved-searches/${id}`);
         }
     };
 
-    const openEditDialog = (search: any) => {
+    const openEditDialog = (search: SavedSearchItem) => {
         setEditingSearch(search);
         setEditName(search.name);
         setEditAlertEnabled(search.alert_enabled);
@@ -149,7 +190,7 @@ export default function UserSavedSearches({
         }
     };
 
-    const handleToggleAlert = (search: any) => {
+    const handleToggleAlert = (search: SavedSearchItem) => {
         router.put(`/user/saved-searches/${search.id}`, {
             name: search.name,
             criteria: search.criteria,
@@ -230,7 +271,7 @@ export default function UserSavedSearches({
                         <Card>
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
-                                    {savedSearches.data.map((search: any) => (
+                                    {savedSearches.data.map((search) => (
                                         <div
                                             key={search.id}
                                             className="flex flex-col justify-between gap-4 p-6 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center"

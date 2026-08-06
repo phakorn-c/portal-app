@@ -1,8 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+import { resetDatabase } from './support/test-environment';
+
 test('guest can search procurement and open an announcement detail page', async ({
     page,
 }) => {
+    resetDatabase();
+
     const announcement = {
         id: 1,
         title: 'Khon Kaen Smart Traffic Upgrade',

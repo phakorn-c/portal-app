@@ -1,9 +1,8 @@
-import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
-const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
+import { artisan, resetDatabase } from './support/test-environment';
 
 function evidencePath(fileName: string) {
     const evidenceDirectory = fileURLToPath(
@@ -14,31 +13,6 @@ function evidencePath(fileName: string) {
 
     return fileURLToPath(
         new URL(`../../.sisyphus/evidence/${fileName}`, import.meta.url),
-    );
-}
-
-function artisan(...args: string[]) {
-    return execFileSync('php', ['artisan', ...args], {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        env: process.env,
-    });
-}
-
-function resetDatabase() {
-    artisan('migrate:fresh', '--seed', '--force');
-    artisan('cache:clear');
-}
-
-function processQueuedJobs() {
-    return execFileSync(
-        'php',
-        ['artisan', 'queue:work', 'database', '--stop-when-empty', '--tries=1'],
-        {
-            cwd: projectRoot,
-            encoding: 'utf8',
-            env: process.env,
-        },
     );
 }
 
@@ -435,8 +409,6 @@ test('admin publish creates notification for saved search', async ({
     await expect(
         announcementRow.locator('[data-test="admin-announcement-publish"]'),
     ).toHaveAttribute('title', 'ซ่อน');
-
-    processQueuedJobs();
 
     await logout(page);
 

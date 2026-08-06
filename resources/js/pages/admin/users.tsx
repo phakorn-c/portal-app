@@ -1,13 +1,13 @@
 import { Head, router, Link } from '@inertiajs/react';
 import { ShieldCheck, Trash2, Users, ArrowLeft } from 'lucide-react';
-import * as adminRoutes from '@/routes/admin';
-import * as userRoutes from '@/routes/admin/users';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Pagination } from '@/components/ui/pagination';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import * as adminRoutes from '@/routes/admin';
+import * as userRoutes from '@/routes/admin/users';
 
 type User = {
     id: number;
@@ -178,7 +178,7 @@ export default function AdminUsers({ users }: AdminUsersProps) {
                                 data={users.data}
                                 columns={columns}
                                 emptyMessage="ไม่พบผู้ใช้งาน"
-                                getRowProps={(item) =>
+                                getRowProps={() =>
                                     ({
                                         'data-test': 'admin-user-row',
                                     }) as React.HTMLAttributes<HTMLTableRowElement>

@@ -1,21 +1,6 @@
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
 
-const projectRoot = fileURLToPath(new URL('../..', import.meta.url));
-
-function artisan(...args: string[]) {
-    return execFileSync('php', ['artisan', ...args], {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        env: process.env,
-    });
-}
-
-function resetDatabase() {
-    artisan('migrate:fresh', '--seed', '--force');
-    artisan('cache:clear');
-}
+import { artisan, resetDatabase } from './support/test-environment';
 
 function createAdminFixtures() {
     artisan(

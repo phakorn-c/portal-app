@@ -1,5 +1,12 @@
 import { Link, usePage } from '@inertiajs/react';
-import { FileText, LayoutGrid, Shield, Bookmark, History, Bell } from 'lucide-react';
+import {
+    FileText,
+    LayoutGrid,
+    Shield,
+    Bookmark,
+    History,
+    Bell,
+} from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -14,7 +21,6 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 
-
 export function AppSidebar() {
     const page = usePage<SharedData>();
     const { auth } = page.props;
@@ -24,16 +30,40 @@ export function AppSidebar() {
     ];
 
     if (auth?.capabilities?.isAdmin || auth?.capabilities?.isRegistered) {
-        navItems.unshift({ title: 'Dashboard', href: dashboard(), icon: LayoutGrid });
+        navItems.unshift({
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        });
         navItems.push(
-            { title: 'Saved Searches', href: '/user/saved-searches', icon: Bookmark, 'data-test': 'nav-saved-searches-link' },
-            { title: 'History', href: '/user/history', icon: History, 'data-test': 'nav-history-link' },
-            { title: 'Notifications', href: '/user/notifications', icon: Bell, 'data-test': 'nav-notifications-link' }
+            {
+                title: 'Saved Searches',
+                href: '/user/saved-searches',
+                icon: Bookmark,
+                'data-test': 'nav-saved-searches-link',
+            },
+            {
+                title: 'History',
+                href: '/user/history',
+                icon: History,
+                'data-test': 'nav-history-link',
+            },
+            {
+                title: 'Notifications',
+                href: '/user/notifications',
+                icon: Bell,
+                'data-test': 'nav-notifications-link',
+            },
         );
     }
 
     if (auth?.capabilities?.isAdmin) {
-        navItems.push({ title: 'หน้าจัดการ (Admin)', href: '/admin', icon: Shield, 'data-test': 'nav-admin-link' });
+        navItems.push({
+            title: 'หน้าจัดการ (Admin)',
+            href: '/admin',
+            icon: Shield,
+            'data-test': 'nav-admin-link',
+        });
     }
 
     return (
@@ -43,7 +73,9 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href={dashboard()} prefetch>
-                                <span className="text-lg font-bold">{page.props.name}</span>
+                                <span className="text-lg font-bold">
+                                    {page.props.name}
+                                </span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

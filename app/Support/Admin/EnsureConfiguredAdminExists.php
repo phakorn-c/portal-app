@@ -22,7 +22,7 @@ class EnsureConfiguredAdminExists
     {
         try {
             // Guard against missing users table (avoid pre-migration errors)
-            if (!Schema::hasTable('users')) {
+            if (! Schema::hasTable('users')) {
                 return false;
             }
 
@@ -33,7 +33,7 @@ class EnsureConfiguredAdminExists
             $lastName = config('admin.last_name');
 
             // Return early if any required config is missing or null
-            if (!$email || !$password || !$firstName || !$lastName) {
+            if (! $email || ! $password || ! $firstName || ! $lastName) {
                 return false;
             }
 
@@ -43,7 +43,7 @@ class EnsureConfiguredAdminExists
             }
 
             // Create the admin user
-            $name = trim($firstName) . ' ' . trim($lastName);
+            $name = trim($firstName).' '.trim($lastName);
 
             User::create([
                 'name' => $name,

@@ -46,7 +46,6 @@ export interface Alert {
     last_notified_at: string | null;
 }
 
-
 export interface UserStats {
     activeTracking: number;
     savedProjects: number;

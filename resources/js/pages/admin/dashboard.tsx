@@ -18,23 +18,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Pagination } from '@/components/ui/pagination';
-import { StatusBadge } from '@/components/ui/status-badge';
-import AppHeaderLayout from '@/layouts/app/app-header-layout';
-import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import {
     Select,
     SelectContent,
@@ -42,8 +40,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import * as announcementRoutes from '@/routes/admin/announcements';
+import { StatusBadge } from '@/components/ui/status-badge';
+import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import * as adminRoutes from '@/routes/admin';
+import * as announcementRoutes from '@/routes/admin/announcements';
 import * as userRoutes from '@/routes/admin/users';
 
 type Announcement = {
@@ -138,7 +138,7 @@ function AnnouncementModal({
             });
             clearErrors();
         }
-    }, [isOpen, announcement]);
+    }, [isOpen, announcement, isEdit, setData, clearErrors]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -736,7 +736,7 @@ export default function AdminDashboard({
                                 data={filteredAnnouncements}
                                 columns={columns}
                                 emptyMessage="ไม่พบประกาศที่ตรงกับการค้นหา"
-                                getRowProps={(item) =>
+                                getRowProps={() =>
                                     ({
                                         'data-test': 'admin-announcement-row',
                                     }) as React.HTMLAttributes<HTMLTableRowElement>

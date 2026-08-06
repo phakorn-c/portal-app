@@ -41,8 +41,6 @@ type Props = {
     breadcrumbs?: BreadcrumbItem[];
 };
 
-
-
 const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
@@ -57,16 +55,40 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     ];
 
     if (auth?.capabilities?.isAdmin || auth?.capabilities?.isRegistered) {
-        navItems.unshift({ title: 'Dashboard', href: dashboard(), icon: LayoutGrid });
+        navItems.unshift({
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        });
         navItems.push(
-            { title: 'Saved Searches', href: '/user/saved-searches', icon: Bookmark, 'data-test': 'nav-saved-searches-link' },
-            { title: 'History', href: '/user/history', icon: History, 'data-test': 'nav-history-link' },
-            { title: 'Notifications', href: '/user/notifications', icon: Bell, 'data-test': 'nav-notifications-link' }
+            {
+                title: 'Saved Searches',
+                href: '/user/saved-searches',
+                icon: Bookmark,
+                'data-test': 'nav-saved-searches-link',
+            },
+            {
+                title: 'History',
+                href: '/user/history',
+                icon: History,
+                'data-test': 'nav-history-link',
+            },
+            {
+                title: 'Notifications',
+                href: '/user/notifications',
+                icon: Bell,
+                'data-test': 'nav-notifications-link',
+            },
         );
     }
 
     if (auth?.capabilities?.isAdmin) {
-        navItems.push({ title: 'หน้าจัดการ (Admin)', href: '/admin', icon: Shield, 'data-test': 'nav-admin-link' });
+        navItems.push({
+            title: 'หน้าจัดการ (Admin)',
+            href: '/admin',
+            icon: Shield,
+            'data-test': 'nav-admin-link',
+        });
     }
     return (
         <>
@@ -92,7 +114,9 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                     Navigation Menu
                                 </SheetTitle>
                                 <SheetHeader className="flex justify-start text-left">
-                                    <span className="text-lg font-bold">{page.props.name}</span>
+                                    <span className="text-lg font-bold">
+                                        {page.props.name}
+                                    </span>
                                 </SheetHeader>
                                 <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                     <div className="flex h-full flex-col justify-between text-sm">
@@ -102,7 +126,9 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                                     key={item.title}
                                                     href={item.href}
                                                     className="flex items-center space-x-2 font-medium"
-                                                    data-test={item['data-test']}
+                                                    data-test={
+                                                        item['data-test']
+                                                    }
                                                 >
                                                     {item.icon && (
                                                         <item.icon className="h-5 w-5" />
@@ -111,7 +137,6 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                                 </Link>
                                             ))}
                                         </div>
-
                                     </div>
                                 </div>
                             </SheetContent>
@@ -123,7 +148,9 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                         prefetch
                         className="flex items-center space-x-2"
                     >
-                        <span className="text-xl font-bold">{page.props.name}</span>
+                        <span className="text-xl font-bold">
+                            {page.props.name}
+                        </span>
                     </Link>
 
                     {/* Desktop Navigation */}

@@ -1,50 +1,44 @@
+import { execFileSync } from 'node:child_process';
+import { closeSync, openSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const projectRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
 const defaultDatabasePath = fileURLToPath(
-    new URL('../../../database/database.sqlite', import.meta.url),
+    new URL('../../../database/playwright.sqlite', import.meta.url),
 );
 
 export const databasePath =
     process.env.PLAYWRIGHT_DB_DATABASE ?? defaultDatabasePath;
 
-export const sailDatabasePath = '/var/www/html/database/database.sqlite';
+closeSync(openSync(databasePath, 'a'));
 
 export const testingEnv = {
     APP_ENV: 'testing',
+    BROADCAST_CONNECTION: 'null',
+    CACHE_STORE: 'file',
     DB_CONNECTION: 'sqlite',
     DB_DATABASE: databasePath,
-    SESSION_DRIVER: 'file',
-    CACHE_STORE: 'file',
+    DB_URL: '',
+    MAIL_MAILER: 'array',
     QUEUE_CONNECTION: 'sync',
-};
+    SESSION_DRIVER: 'file',
+} satisfies NodeJS.ProcessEnv;
 
 export const artisanEnv = {
     ...process.env,
     ...testingEnv,
 };
 
-export const phpTestingEnv = Object.entries(testingEnv)
-    .map(([key, value]) => `${key}=${value}`)
-    .join(' ');
+export function artisan(...args: string[]): string {
+    return execFileSync('php', ['artisan', ...args], {
+        cwd: projectRoot,
+        encoding: 'utf8',
+        env: artisanEnv,
+    });
+}
 
-export const sailTestingArgs = [
-    'exec',
-    '-T',
-    '-u',
-    'sail',
-    '-e',
-    'APP_ENV=testing',
-    '-e',
-    'DB_CONNECTION=sqlite',
-    '-e',
-    `DB_DATABASE=${sailDatabasePath}`,
-    '-e',
-    'SESSION_DRIVER=file',
-    '-e',
-    'CACHE_STORE=file',
-    '-e',
-    'QUEUE_CONNECTION=sync',
-    'laravel.test',
-];
+export function resetDatabase(): void {
+    artisan('migrate:fresh', '--seed', '--force');
+    artisan('cache:clear');
+}

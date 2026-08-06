@@ -8,7 +8,6 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
 use function Pest\Laravel\deleteJson;
 use function Pest\Laravel\patchJson;
-use function Pest\Laravel\seed;
 
 uses(RefreshDatabase::class);
 
