@@ -26,6 +26,8 @@ class Announcement extends Model
         'publication_status',
         'deadline',
         'published_at',
+        'source_url',
+        'source_reference',
     ];
 
     protected function casts(): array
