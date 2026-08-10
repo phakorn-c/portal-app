@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Support\Admin\EnsureConfiguredAdminExists;
+use App\Support\Procurement\Extraction\DocumentExtractor;
+use App\Support\Procurement\Extraction\FakeDocumentExtractor;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(DocumentExtractor::class, FakeDocumentExtractor::class);
     }
 
     /**
