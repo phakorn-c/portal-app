@@ -33,6 +33,8 @@ class StoreAnnouncementRequest extends FormRequest
             'status' => ['required', Rule::in(['open', 'urgent', 'closing', 'closed'])],
             'publication_status' => ['required', Rule::in(['draft', 'published', 'hidden'])],
             'deadline' => ['required', 'date'],
+            'source_url' => ['nullable', 'url:http,https', 'max:2048'],
+            'source_reference' => ['nullable', 'string', 'max:255'],
             'attachment' => ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:20480'],
         ];
     }

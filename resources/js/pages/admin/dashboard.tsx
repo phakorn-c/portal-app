@@ -58,6 +58,8 @@ type Announcement = {
     published_at: string | null;
     status: 'open' | 'urgent' | 'closing' | 'closed';
     publication_status: 'draft' | 'published' | 'hidden';
+    source_url: string | null;
+    source_reference: string | null;
 };
 
 type PaginatedData<T> = {
@@ -116,6 +118,8 @@ function AnnouncementModal({
             deadline: '',
             status: 'open',
             publication_status: 'draft',
+            source_url: '',
+            source_reference: '',
             attachment: null as File | null,
         });
 
@@ -134,6 +138,8 @@ function AnnouncementModal({
                     : '',
                 status: announcement?.status || 'open',
                 publication_status: announcement?.publication_status || 'draft',
+                source_url: announcement?.source_url || '',
+                source_reference: announcement?.source_reference || '',
                 attachment: null,
             });
             clearErrors();
@@ -376,6 +382,39 @@ function AnnouncementModal({
                             {errors.publication_status && (
                                 <p className="text-sm text-destructive">
                                     {errors.publication_status}
+                                </p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="source_url">ลิงก์แหล่งที่มา</Label>
+                            <Input
+                                id="source_url"
+                                type="url"
+                                value={data.source_url}
+                                onChange={(e) =>
+                                    setData('source_url', e.target.value)
+                                }
+                            />
+                            {errors.source_url && (
+                                <p className="text-sm text-destructive">
+                                    {errors.source_url}
+                                </p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="source_reference">
+                                เลขที่อ้างอิงแหล่งที่มา
+                            </Label>
+                            <Input
+                                id="source_reference"
+                                value={data.source_reference}
+                                onChange={(e) =>
+                                    setData('source_reference', e.target.value)
+                                }
+                            />
+                            {errors.source_reference && (
+                                <p className="text-sm text-destructive">
+                                    {errors.source_reference}
                                 </p>
                             )}
                         </div>

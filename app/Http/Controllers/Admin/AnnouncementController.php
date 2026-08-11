@@ -7,9 +7,12 @@ use App\Http\Requests\Admin\StoreAnnouncementRequest;
 use App\Http\Requests\Admin\UpdateAnnouncementRequest;
 use App\Jobs\EvaluateSavedSearchAlerts;
 use App\Models\Announcement;
+use App\Support\Procurement\AttachmentStorage;
+use App\Support\Procurement\AttachmentStorageException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class AnnouncementController extends Controller
 {
@@ -18,13 +21,19 @@ class AnnouncementController extends Controller
         return redirect()->route('admin.dashboard');
     }
 
-    public function store(StoreAnnouncementRequest $request): RedirectResponse
+    public function store(StoreAnnouncementRequest $request, AttachmentStorage $attachmentStorage): RedirectResponse
     {
         $data = $this->normalizePublicationData($request->safe()->except('attachment'));
-        $announcement = Announcement::create($data);
+        $file = $request->file('attachment');
 
-        if ($request->hasFile('attachment')) {
-            $this->attachPdf($announcement, $request->file('attachment'));
+        if ($file instanceof UploadedFile) {
+            try {
+                $attachmentStorage->store(new Announcement, $file, $data);
+            } catch (AttachmentStorageException $exception) {
+                throw ValidationException::withMessages(['attachment' => $exception->getMessage()]);
+            }
+        } else {
+            Announcement::create($data);
         }
 
         return redirect()->route('admin.announcements.index')->with('success', 'Announcement created successfully.');
@@ -35,15 +44,22 @@ class AnnouncementController extends Controller
         return redirect()->route('admin.announcements.index');
     }
 
-    public function update(UpdateAnnouncementRequest $request, Announcement $announcement): RedirectResponse
-    {
+    public function update(
+        UpdateAnnouncementRequest $request,
+        Announcement $announcement,
+        AttachmentStorage $attachmentStorage,
+    ): RedirectResponse {
         $data = $this->normalizePublicationData($request->safe()->except('attachment'));
-        $announcement->update($data);
+        $file = $request->file('attachment');
 
-        if ($request->hasFile('attachment')) {
-            $this->removeStoredFiles($announcement);
-            $announcement->attachments()->delete();
-            $this->attachPdf($announcement, $request->file('attachment'));
+        if ($file instanceof UploadedFile) {
+            try {
+                $attachmentStorage->store($announcement, $file, $data);
+            } catch (AttachmentStorageException $exception) {
+                throw ValidationException::withMessages(['attachment' => $exception->getMessage()]);
+            }
+        } else {
+            $announcement->update($data);
         }
 
         return redirect()->route('admin.announcements.index')->with('success', 'Announcement updated successfully.');
@@ -82,22 +98,6 @@ class AnnouncementController extends Controller
         ]);
 
         return redirect()->route('admin.announcements.index')->with('success', 'Announcement hidden successfully.');
-    }
-
-    protected function attachPdf(Announcement $announcement, ?UploadedFile $file): void
-    {
-        if (! $file instanceof UploadedFile) {
-            return;
-        }
-
-        $storedFilename = $file->store('attachments', 'local');
-
-        $announcement->attachments()->create([
-            'filename' => $file->getClientOriginalName(),
-            'stored_filename' => $storedFilename,
-            'file_size' => $file->getSize() ?? 0,
-            'mime_type' => $file->getMimeType() ?: 'application/pdf',
-        ]);
     }
 
     protected function removeStoredFiles(Announcement $announcement): void
