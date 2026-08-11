@@ -59,7 +59,7 @@ class AnnouncementController extends Controller
                 throw ValidationException::withMessages(['attachment' => $exception->getMessage()]);
             }
         } else {
-            $announcement->update($data);
+            $attachmentStorage->updateAnnouncement($announcement, $data);
         }
 
         return redirect()->route('admin.announcements.index')->with('success', 'Announcement updated successfully.');

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\ExtractionReviewController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Procurement\PdfController;
@@ -34,6 +35,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin/announcemen
     Route::delete('{announcement}', [AnnouncementController::class, 'destroy'])->name('destroy');
     Route::patch('{announcement}/publish', [AnnouncementController::class, 'publish'])->name('publish');
     Route::patch('{announcement}/hide', [AnnouncementController::class, 'hide'])->name('hide');
+    Route::get('{announcement}/extractions/{extraction}', [ExtractionReviewController::class, 'show'])->name('extractions.show');
+    Route::put('{announcement}/extractions/{extraction}/approve', [ExtractionReviewController::class, 'approve'])->name('extractions.approve');
+    Route::post('{announcement}/extractions/{extraction}/retry', [ExtractionReviewController::class, 'retry'])->name('extractions.retry');
 });
 
 // TODO: add role:admin middleware - Task 3

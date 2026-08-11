@@ -5,6 +5,7 @@ namespace App\Support\Procurement;
 use App\Jobs\ProcessDocumentExtraction;
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
+use App\Models\DocumentExtraction;
 use Illuminate\Database\QueryException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +24,23 @@ final class AttachmentStorage
 
     private const LOCK_SECONDS = 120;
 
+    private const APPROVAL_INVALIDATING_FIELDS = [
+        'title',
+        'organization',
+        'category',
+        'method',
+        'budget',
+        'location',
+        'reference_price',
+        'contact_name',
+        'contact_phone',
+        'description',
+        'deadline',
+        'status',
+        'source_url',
+        'source_reference',
+    ];
+
     public function store(
         Announcement $announcement,
         UploadedFile $file,
@@ -39,6 +57,15 @@ final class AttachmentStorage
         } finally {
             $lock->release();
         }
+    }
+
+    public function updateAnnouncement(Announcement $announcement, array $attributes): Announcement
+    {
+        return DB::transaction(function () use ($announcement, $attributes): Announcement {
+            $parent = Announcement::query()->lockForUpdate()->findOrFail($announcement->getKey());
+
+            return $this->applyAnnouncementAttributes($parent, $attributes);
+        });
     }
 
     private function storeWhileLocked(
@@ -126,15 +153,39 @@ final class AttachmentStorage
     {
         if (! $announcement->exists) {
             $announcement->fill($attributes)->save();
+
+            return Announcement::query()->lockForUpdate()->findOrFail($announcement->getKey());
         }
 
         $parent = Announcement::query()->lockForUpdate()->findOrFail($announcement->getKey());
 
-        if ($announcement->exists && $attributes !== []) {
-            $parent->update($attributes);
+        return $this->applyAnnouncementAttributes($parent, $attributes);
+    }
+
+    private function applyAnnouncementAttributes(Announcement $announcement, array $attributes): Announcement
+    {
+        if ($attributes === []) {
+            return $announcement;
         }
 
-        return $parent;
+        $announcement->fill($attributes);
+        $invalidatesApproval = $announcement->isDirty(self::APPROVAL_INVALIDATING_FIELDS);
+        $announcement->save();
+
+        if ($invalidatesApproval) {
+            DocumentExtraction::query()
+                ->where('status', 'approved')
+                ->whereHas('attachment', fn ($query) => $query->where('announcement_id', $announcement->id))
+                ->lockForUpdate()
+                ->get()
+                ->each(fn (DocumentExtraction $extraction) => $extraction->update([
+                    'status' => 'review',
+                    'approved_at' => null,
+                    'approved_by' => null,
+                ]));
+        }
+
+        return $announcement;
     }
 
     private function replaceableKeys(Collection $attachments): array
