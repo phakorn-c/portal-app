@@ -11,7 +11,7 @@ final readonly class ExtractionResult
      */
     public function __construct(
         public string $document_kind,
-        public string $method,
+        public ?string $method,
         public ?array $candidate,
         public array $confidence,
         public array $warnings,

@@ -29,15 +29,27 @@ test('extracts the deterministic text PDF candidate from the original client fil
         ->and($result)->toBeInstanceOf(ExtractionResult::class)
         ->and($result->document_kind)->toBe('text_pdf')
         ->and($result->method)->toBe('fake_embedded_text')
-        ->and($result->candidate)->toBeArray()
+        ->and($result->candidate)->toBe([
+            'title' => 'ประกวดราคาซื้อครุภัณฑ์คอมพิวเตอร์',
+            'organization' => 'มหาวิทยาลัยขอนแก่น',
+            'category' => 'goods',
+            'method' => 'e-bidding',
+            'budget' => 1500000,
+            'location' => 'มหาวิทยาลัยขอนแก่น',
+            'reference_price' => 1480000,
+            'contact_name' => 'งานพัสดุ',
+            'contact_phone' => '043-000-601',
+            'description' => 'ข้อมูลสาธิตจาก PDF ที่มีชั้นข้อความ',
+            'deadline' => '2026-09-30',
+            'status' => 'open',
+        ])
         ->and(array_keys($result->candidate))->toBe(CANDIDATE_KEYS)
-        ->and($result->candidate['organization'])->toBe('มหาวิทยาลัยขอนแก่น')
         ->and($result->candidate['category'])->toBeIn(array_keys(Taxonomy::categories()))
         ->and($result->candidate['method'])->toBeIn(array_keys(Taxonomy::methods()))
         ->and($result->candidate['status'])->toBeIn(['open', 'urgent', 'closing', 'closed'])
-        ->and(array_keys($result->confidence))->toBe(CANDIDATE_KEYS)
+        ->and($result->confidence)->toBe(['title' => 0.99, 'budget' => 0.98])
         ->and($result->warnings)->toBe([])
-        ->and($result->raw_text)->toContain('มหาวิทยาลัยขอนแก่น')
+        ->and($result->raw_text)->toBe('ข้อมูลสาธิต Text PDF')
         ->and($result->error_message)->toBeNull();
 });
 
@@ -48,16 +60,26 @@ test('returns an honestly labeled partial placeholder for the scanned fixture', 
 
     expect($result->document_kind)->toBe('scanned_pdf')
         ->and($result->method)->toBe('fake_ocr_placeholder')
-        ->and($result->candidate)->toBeArray()
-        ->and($result->candidate)->not->toBe([])
-        ->and(array_keys($result->candidate))->each->toBeIn(CANDIDATE_KEYS)
-        ->and($result->candidate['organization'])->toBe('เทศบาลนครขอนแก่น')
+        ->and($result->candidate)->toBe([
+            'title' => 'จ้างปรับปรุงระบบระบายน้ำเทศบาล',
+            'organization' => 'เทศบาลนครขอนแก่น',
+            'category' => 'construction',
+            'method' => 'e-bidding',
+            'budget' => 2750000,
+            'location' => 'เทศบาลนครขอนแก่น',
+            'reference_price' => 2700000,
+            'contact_name' => 'กองคลัง',
+            'contact_phone' => '043-000-602',
+            'description' => 'ข้อมูลสาธิต Scanned PDF',
+            'deadline' => '2026-10-15',
+            'status' => 'open',
+        ])
         ->and($result->candidate['category'])->toBeIn(array_keys(Taxonomy::categories()))
         ->and($result->candidate['method'])->toBeIn(array_keys(Taxonomy::methods()))
         ->and($result->candidate['status'])->toBeIn(['open', 'urgent', 'closing', 'closed'])
-        ->and($result->warnings)->toHaveCount(1)
-        ->and($result->warnings[0])->toContain('deterministic OCR placeholder')
-        ->and($result->warnings[0])->toContain('not model output')
+        ->and($result->confidence)->toBe(['title' => 0.86, 'budget' => 0.82])
+        ->and($result->warnings)->toBe(['deterministic OCR placeholder; not model output'])
+        ->and($result->raw_text)->toBe('ข้อมูลสาธิต Scanned PDF')
         ->and($result->error_message)->toBeNull();
 });
 
@@ -68,11 +90,12 @@ test('returns a typed failure result for the failure fixture', function () {
 
     expect($result)->toBeInstanceOf(ExtractionResult::class)
         ->and($result->document_kind)->toBe('unknown')
-        ->and($result->method)->toBe('fake_unknown')
+        ->and($result->method)->toBeNull()
         ->and($result->candidate)->toBeNull()
         ->and($result->confidence)->toBe([])
         ->and($result->raw_text)->toBeNull()
-        ->and($result->error_message)->not->toBeNull();
+        ->and($result->warnings)->toBe([])
+        ->and($result->error_message)->toBe('DEMO_EXTRACTION_FAILURE');
 });
 
 test('returns a safe review fallback for malformed and unknown filenames', function (string $filename) {

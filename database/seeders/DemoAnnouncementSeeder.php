@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -113,6 +114,72 @@ class DemoAnnouncementSeeder extends Seeder
             ],
         ]);
 
+        DB::table('announcements')->insert([
+            [
+                'id' => 6,
+                'title' => 'ประกวดราคาซื้อครุภัณฑ์คอมพิวเตอร์',
+                'organization' => 'มหาวิทยาลัยขอนแก่น',
+                'category' => 'goods',
+                'method' => 'e-bidding',
+                'budget' => '1500000.00',
+                'location' => 'มหาวิทยาลัยขอนแก่น',
+                'reference_price' => '1480000.00',
+                'contact_name' => 'งานพัสดุ',
+                'contact_phone' => '043-000-601',
+                'description' => 'ข้อมูลสาธิตจาก PDF ที่มีชั้นข้อความ',
+                'status' => 'open',
+                'publication_status' => 'draft',
+                'deadline' => '2026-09-30',
+                'published_at' => null,
+                'source_url' => 'https://demo.invalid/kku/PROC-2569-001',
+                'source_reference' => 'PROC-2569-001',
+                'created_at' => '2026-08-01 09:00:00',
+                'updated_at' => '2026-08-01 09:00:01',
+            ],
+            [
+                'id' => 7,
+                'title' => 'จ้างปรับปรุงระบบระบายน้ำเทศบาล',
+                'organization' => 'เทศบาลนครขอนแก่น',
+                'category' => 'construction',
+                'method' => 'e-bidding',
+                'budget' => '2750000.00',
+                'location' => 'เทศบาลนครขอนแก่น',
+                'reference_price' => '2700000.00',
+                'contact_name' => 'กองคลัง',
+                'contact_phone' => '043-000-602',
+                'description' => 'ข้อมูลสาธิต Scanned PDF',
+                'status' => 'open',
+                'publication_status' => 'draft',
+                'deadline' => '2026-10-15',
+                'published_at' => null,
+                'source_url' => 'https://demo.invalid/kkmuni/PROC-2569-002',
+                'source_reference' => 'PROC-2569-002',
+                'created_at' => '2026-08-01 09:05:00',
+                'updated_at' => '2026-08-01 09:06:00',
+            ],
+            [
+                'id' => 8,
+                'title' => 'เอกสารสาธิตการสกัดข้อมูลไม่สำเร็จ',
+                'organization' => 'โรงพยาบาลธัญญารักษ์ขอนแก่น',
+                'category' => 'services',
+                'method' => 'specific',
+                'budget' => '0.00',
+                'location' => 'โรงพยาบาลธัญญารักษ์ขอนแก่น',
+                'reference_price' => null,
+                'contact_name' => null,
+                'contact_phone' => null,
+                'description' => 'ข้อมูลสาธิตกรณีการสกัดเอกสารล้มเหลว',
+                'status' => 'open',
+                'publication_status' => 'draft',
+                'deadline' => '2026-10-31',
+                'published_at' => null,
+                'source_url' => 'https://demo.invalid/thanyarak/PROC-2569-003',
+                'source_reference' => 'PROC-2569-003',
+                'created_at' => '2026-08-01 09:10:00',
+                'updated_at' => '2026-08-01 09:10:01',
+            ],
+        ]);
+
         $this->syncPostgresSequence('announcements', 'id');
 
         // Create a demo PDF attachment for the first published announcement
@@ -133,7 +200,152 @@ class DemoAnnouncementSeeder extends Seeder
             'updated_at' => '2026-03-18 09:00:00',
         ]);
 
+        $fixtures = [
+            6 => [
+                'id' => 2,
+                'filename' => 'kku-text-demo.pdf',
+                'stored_filename' => 'attachments/kku-text-demo.pdf',
+                'sha256' => '952c7d6ee54162b5390d010ddec7db423f8156355c9cb3d31855ac5642d13535',
+                'file_size' => 466,
+                'document_kind' => 'text_pdf',
+                'timestamp' => '2026-08-01 09:00:00',
+            ],
+            7 => [
+                'id' => 3,
+                'filename' => 'khon-kaen-municipality-scanned-demo.pdf',
+                'stored_filename' => 'attachments/khon-kaen-municipality-scanned-demo.pdf',
+                'sha256' => '7b9b4fde3bd1bdcd778e4c64f458f3d286c88e2984750ee213e03222bacffc2b',
+                'file_size' => 488,
+                'document_kind' => 'scanned_pdf',
+                'timestamp' => '2026-08-01 09:05:00',
+            ],
+            8 => [
+                'id' => 4,
+                'filename' => 'thanyarak-khon-kaen-failure-demo.pdf',
+                'stored_filename' => 'attachments/thanyarak-khon-kaen-failure-demo.pdf',
+                'sha256' => '19e6c0b8abdee6209e1c93dcd1ba3e553f19e9d3769c872f1cd12b27d2d445db',
+                'file_size' => 481,
+                'document_kind' => 'unknown',
+                'timestamp' => '2026-08-01 09:10:00',
+            ],
+        ];
+
+        foreach ($fixtures as $announcementId => $fixture) {
+            $contents = file_get_contents(base_path('tests/Fixtures/Procurement/'.$fixture['filename']));
+
+            if ($contents === false
+                || strlen($contents) !== $fixture['file_size']
+                || hash('sha256', $contents) !== $fixture['sha256']) {
+                throw new \RuntimeException("Invalid demo fixture: {$fixture['filename']}");
+            }
+
+            Storage::disk('local')->put($fixture['stored_filename'], $contents);
+
+            DB::table('announcement_attachments')->insert([
+                'id' => $fixture['id'],
+                'announcement_id' => $announcementId,
+                'filename' => $fixture['filename'],
+                'stored_filename' => $fixture['stored_filename'],
+                'mime_type' => 'application/pdf',
+                'file_size' => $fixture['file_size'],
+                'sha256' => $fixture['sha256'],
+                'document_kind' => $fixture['document_kind'],
+                'created_at' => $fixture['timestamp'],
+                'updated_at' => $fixture['timestamp'],
+            ]);
+        }
+
         $this->syncPostgresSequence('announcement_attachments', 'id');
+
+        $adminId = User::query()->where('email', 'admin@example.com')->value('id');
+
+        DB::table('document_extractions')->insert([
+            [
+                'id' => 1,
+                'announcement_attachment_id' => 2,
+                'status' => 'review',
+                'method' => 'fake_embedded_text',
+                'candidate' => json_encode([
+                    'title' => 'ประกวดราคาซื้อครุภัณฑ์คอมพิวเตอร์',
+                    'organization' => 'มหาวิทยาลัยขอนแก่น',
+                    'category' => 'goods',
+                    'method' => 'e-bidding',
+                    'budget' => 1500000,
+                    'location' => 'มหาวิทยาลัยขอนแก่น',
+                    'reference_price' => 1480000,
+                    'contact_name' => 'งานพัสดุ',
+                    'contact_phone' => '043-000-601',
+                    'description' => 'ข้อมูลสาธิตจาก PDF ที่มีชั้นข้อความ',
+                    'deadline' => '2026-09-30',
+                    'status' => 'open',
+                ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+                'confidence' => json_encode(['title' => 0.99, 'budget' => 0.98], JSON_THROW_ON_ERROR),
+                'warnings' => json_encode([], JSON_THROW_ON_ERROR),
+                'raw_text' => 'ข้อมูลสาธิต Text PDF',
+                'error_message' => null,
+                'attempt_count' => 1,
+                'processing_token' => null,
+                'processing_started_at' => '2026-08-01 09:00:00',
+                'processed_at' => '2026-08-01 09:00:01',
+                'approved_at' => null,
+                'approved_by' => null,
+                'created_at' => '2026-08-01 09:00:00',
+                'updated_at' => '2026-08-01 09:00:01',
+            ],
+            [
+                'id' => 2,
+                'announcement_attachment_id' => 3,
+                'status' => 'approved',
+                'method' => 'fake_ocr_placeholder',
+                'candidate' => json_encode([
+                    'title' => 'จ้างปรับปรุงระบบระบายน้ำเทศบาล',
+                    'organization' => 'เทศบาลนครขอนแก่น',
+                    'category' => 'construction',
+                    'method' => 'e-bidding',
+                    'budget' => 2750000,
+                    'location' => 'เทศบาลนครขอนแก่น',
+                    'reference_price' => 2700000,
+                    'contact_name' => 'กองคลัง',
+                    'contact_phone' => '043-000-602',
+                    'description' => 'ข้อมูลสาธิต Scanned PDF',
+                    'deadline' => '2026-10-15',
+                    'status' => 'open',
+                ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+                'confidence' => json_encode(['title' => 0.86, 'budget' => 0.82], JSON_THROW_ON_ERROR),
+                'warnings' => json_encode(['deterministic OCR placeholder; not model output'], JSON_THROW_ON_ERROR),
+                'raw_text' => 'ข้อมูลสาธิต Scanned PDF',
+                'error_message' => null,
+                'attempt_count' => 1,
+                'processing_token' => null,
+                'processing_started_at' => '2026-08-01 09:05:00',
+                'processed_at' => '2026-08-01 09:05:01',
+                'approved_at' => '2026-08-01 09:06:00',
+                'approved_by' => $adminId,
+                'created_at' => '2026-08-01 09:05:00',
+                'updated_at' => '2026-08-01 09:06:00',
+            ],
+            [
+                'id' => 3,
+                'announcement_attachment_id' => 4,
+                'status' => 'failed',
+                'method' => null,
+                'candidate' => null,
+                'confidence' => null,
+                'warnings' => null,
+                'raw_text' => null,
+                'error_message' => 'DEMO_EXTRACTION_FAILURE',
+                'attempt_count' => 1,
+                'processing_token' => null,
+                'processing_started_at' => '2026-08-01 09:10:00',
+                'processed_at' => '2026-08-01 09:10:01',
+                'approved_at' => null,
+                'approved_by' => null,
+                'created_at' => '2026-08-01 09:10:00',
+                'updated_at' => '2026-08-01 09:10:01',
+            ],
+        ]);
+
+        $this->syncPostgresSequence('document_extractions', 'id');
     }
 
     private function syncPostgresSequence(string $table, string $column): void

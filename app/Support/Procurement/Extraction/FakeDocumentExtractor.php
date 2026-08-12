@@ -17,16 +17,16 @@ final class FakeDocumentExtractor implements DocumentExtractor
     private function textPdfResult(): ExtractionResult
     {
         $candidate = [
-            'title' => 'ประกาศจ้างพัฒนาระบบสารสนเทศเพื่อการบริหารงาน มหาวิทยาลัยขอนแก่น',
+            'title' => 'ประกวดราคาซื้อครุภัณฑ์คอมพิวเตอร์',
             'organization' => 'มหาวิทยาลัยขอนแก่น',
-            'category' => 'services',
+            'category' => 'goods',
             'method' => 'e-bidding',
-            'budget' => 2450000.00,
-            'location' => 'อำเภอเมืองขอนแก่น จังหวัดขอนแก่น',
-            'reference_price' => 2400000.00,
-            'contact_name' => 'งานพัสดุ มหาวิทยาลัยขอนแก่น',
-            'contact_phone' => '043-000-111',
-            'description' => 'จ้างพัฒนาระบบสารสนเทศเพื่อสนับสนุนการบริหารงานภายในมหาวิทยาลัย',
+            'budget' => 1500000,
+            'location' => 'มหาวิทยาลัยขอนแก่น',
+            'reference_price' => 1480000,
+            'contact_name' => 'งานพัสดุ',
+            'contact_phone' => '043-000-601',
+            'description' => 'ข้อมูลสาธิตจาก PDF ที่มีชั้นข้อความ',
             'deadline' => '2026-09-30',
             'status' => 'open',
         ];
@@ -35,9 +35,9 @@ final class FakeDocumentExtractor implements DocumentExtractor
             document_kind: 'text_pdf',
             method: 'fake_embedded_text',
             candidate: $candidate,
-            confidence: array_fill_keys(array_keys($candidate), 0.98),
+            confidence: ['title' => 0.99, 'budget' => 0.98],
             warnings: [],
-            raw_text: 'มหาวิทยาลัยขอนแก่น ประกาศจ้างพัฒนาระบบสารสนเทศ งบประมาณ 2,450,000 บาท',
+            raw_text: 'ข้อมูลสาธิต Text PDF',
             error_message: null,
         );
     }
@@ -48,23 +48,25 @@ final class FakeDocumentExtractor implements DocumentExtractor
             document_kind: 'scanned_pdf',
             method: 'fake_ocr_placeholder',
             candidate: [
-                'title' => 'ประกาศซื้อวัสดุสำนักงาน เทศบาลนครขอนแก่น',
+                'title' => 'จ้างปรับปรุงระบบระบายน้ำเทศบาล',
                 'organization' => 'เทศบาลนครขอนแก่น',
-                'category' => 'goods',
-                'method' => 'specific',
+                'category' => 'construction',
+                'method' => 'e-bidding',
+                'budget' => 2750000,
                 'location' => 'เทศบาลนครขอนแก่น',
+                'reference_price' => 2700000,
+                'contact_name' => 'กองคลัง',
+                'contact_phone' => '043-000-602',
+                'description' => 'ข้อมูลสาธิต Scanned PDF',
+                'deadline' => '2026-10-15',
                 'status' => 'open',
             ],
             confidence: [
-                'title' => 0.70,
-                'organization' => 0.95,
-                'category' => 0.70,
-                'method' => 0.70,
-                'location' => 0.75,
-                'status' => 0.65,
+                'title' => 0.86,
+                'budget' => 0.82,
             ],
-            warnings: ['This is a deterministic OCR placeholder for demonstration only, not model output; review is required.'],
-            raw_text: null,
+            warnings: ['deterministic OCR placeholder; not model output'],
+            raw_text: 'ข้อมูลสาธิต Scanned PDF',
             error_message: null,
         );
     }
@@ -73,12 +75,12 @@ final class FakeDocumentExtractor implements DocumentExtractor
     {
         return new ExtractionResult(
             document_kind: 'unknown',
-            method: 'fake_unknown',
+            method: null,
             candidate: null,
             confidence: [],
-            warnings: ['Deterministic failure fixture; no candidate data was produced.'],
+            warnings: [],
             raw_text: null,
-            error_message: 'Deterministic fake extraction failure for thanyarak-khon-kaen-failure-demo.pdf.',
+            error_message: 'DEMO_EXTRACTION_FAILURE',
         );
     }
 
