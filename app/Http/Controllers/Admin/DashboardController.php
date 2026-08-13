@@ -12,7 +12,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $announcements = Announcement::with('attachments')
+        $announcements = Announcement::with([
+            'attachments.extraction' => fn ($query) => $query->select(['id', 'announcement_attachment_id', 'status']),
+        ])
             ->latest()
             ->paginate(15);
 

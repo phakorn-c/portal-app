@@ -44,6 +44,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import * as adminRoutes from '@/routes/admin';
 import * as announcementRoutes from '@/routes/admin/announcements';
+import { show as reviewShow } from '@/routes/admin/announcements/extractions';
 import * as userRoutes from '@/routes/admin/users';
 
 type Announcement = {
@@ -60,6 +61,7 @@ type Announcement = {
     publication_status: 'draft' | 'published' | 'hidden';
     source_url: string | null;
     source_reference: string | null;
+    attachments: { extraction?: { id: number; status: string } | null }[];
 };
 
 type PaginatedData<T> = {
@@ -91,6 +93,10 @@ interface AdminDashboardProps {
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
+const extractionLabels: Record<string, string> = {
+    review: 'รอตรวจสอบ',
+    failed: 'ล้มเหลว',
+};
 type AnnouncementModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -572,6 +578,21 @@ export default function AdminDashboard({
             key: 'status',
             header: 'สถานะ',
             cell: (item) => <StatusBadge status={item.status} />,
+        },
+        {
+            key: 'extraction',
+            header: 'การสกัดเอกสาร',
+            cell: (item) => {
+                const ex = item.attachments?.[0]?.extraction;
+                return ex ? (
+                    <Link
+                        href={reviewShow.url([item.id, ex.id])}
+                        data-test={`extraction-review-link-${item.id}`}
+                    >
+                        {extractionLabels[ex.status] ?? ex.status}
+                    </Link>
+                ) : null;
+            },
         },
         {
             key: 'actions',
