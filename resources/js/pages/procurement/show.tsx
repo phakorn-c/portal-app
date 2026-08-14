@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ChevronRight,
     Download,
+    ExternalLink,
     FileText,
     MapPin,
     Menu,
@@ -39,6 +40,8 @@ type AnnouncementDetail = {
     contact_phone: string | null;
     publication_status: 'draft' | 'published' | 'hidden';
     published_at: string | null;
+    source_url?: string;
+    source_reference?: string | null;
     attachments: Attachment[];
 };
 
@@ -75,6 +78,9 @@ function formatBudget(value: number | string): string {
 export default function ProcurementAnnouncement() {
     const { announcement, taxonomy } = usePage<PageProps>().props;
     const primaryAttachment = announcement.attachments[0] ?? null;
+    const sourceHostname = announcement.source_url
+        ? new URL(announcement.source_url).hostname
+        : null;
 
     const methodLabel =
         taxonomy?.methodLabels?.[announcement.method] ?? announcement.method;
@@ -360,6 +366,55 @@ export default function ProcurementAnnouncement() {
                                 )}
                             </CardContent>
                         </Card>
+
+                        {announcement.source_url ? (
+                            <Card data-test="source-attribution">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        แหล่งที่มาของประกาศ
+                                        {sourceHostname?.endsWith(
+                                            '.invalid',
+                                        ) ? (
+                                            <Badge
+                                                variant="secondary"
+                                                data-test="source-attribution-invalid-label"
+                                            >
+                                                .invalid — โดเมนสาธิต
+                                            </Badge>
+                                        ) : null}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <a
+                                        href={announcement.source_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex max-w-full items-center gap-2 text-sm font-medium break-all text-primary hover:underline"
+                                        data-test="source-attribution-link"
+                                    >
+                                        {announcement.source_url}
+                                        <ExternalLink className="h-4 w-4 shrink-0" />
+                                    </a>
+                                    {announcement.source_reference ? (
+                                        <p
+                                            className="text-sm text-muted-foreground"
+                                            data-test="source-attribution-reference"
+                                        >
+                                            เลขที่อ้างอิง:{' '}
+                                            {announcement.source_reference}
+                                        </p>
+                                    ) : null}
+                                    <p
+                                        className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                                        data-test="source-attribution-notice"
+                                    >
+                                        ข้อมูลนี้เป็นข้อมูลสาธิตแบบกำหนดผลลัพธ์แน่นอน
+                                        ไม่ใช่ผลลัพธ์จาก OCR หรือโมเดล
+                                        และไม่ใช่แหล่งข้อมูลทางการ
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ) : null}
 
                         <Card>
                             <CardHeader>

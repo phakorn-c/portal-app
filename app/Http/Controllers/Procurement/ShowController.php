@@ -19,6 +19,17 @@ class ShowController extends Controller
         }
 
         $announcement->load('attachments');
+        $sourceUrl = $announcement->source_url;
+        $sourceScheme = is_string($sourceUrl) ? parse_url($sourceUrl, PHP_URL_SCHEME) : null;
+        $sourceHost = is_string($sourceUrl) ? parse_url($sourceUrl, PHP_URL_HOST) : null;
+        $hasApprovedExtraction = $announcement->attachments()
+            ->whereHas('extraction', fn ($query) => $query->where('status', 'approved'))
+            ->exists();
+        $showsSourceAttribution = $hasApprovedExtraction
+            && is_string($sourceScheme)
+            && in_array(strtolower($sourceScheme), ['http', 'https'], true)
+            && is_string($sourceHost)
+            && $sourceHost !== '';
 
         $user = $request->user();
         if ($user && $user->email_verified_at) {
@@ -47,6 +58,10 @@ class ShowController extends Controller
                 'contact_phone' => $announcement->contact_phone,
                 'publication_status' => $announcement->publication_status,
                 'published_at' => $announcement->published_at,
+                ...($showsSourceAttribution ? [
+                    'source_url' => $sourceUrl,
+                    'source_reference' => $announcement->source_reference,
+                ] : []),
                 'attachments' => $announcement->attachments->map(fn ($attachment): array => [
                     'id' => $attachment->id,
                     'filename' => $attachment->filename,

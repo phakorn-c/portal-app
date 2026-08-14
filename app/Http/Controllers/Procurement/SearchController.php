@@ -22,6 +22,16 @@ class SearchController extends Controller
 
         $announcements = $this->announcementSearch
             ->apply($criteria)
+            ->select([
+                'id',
+                'title',
+                'organization',
+                'category',
+                'method',
+                'budget',
+                'deadline',
+                'status',
+            ])
             ->paginate(15)
             ->withQueryString();
 
