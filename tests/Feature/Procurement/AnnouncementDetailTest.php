@@ -138,7 +138,7 @@ test('serves pdf for published announcement', function () {
 
     $response->assertOk();
     $response->assertHeader('content-type', 'application/pdf');
-    $response->assertHeader('content-disposition', 'inline; filename="published.pdf"');
+    $response->assertHeader('content-disposition', 'inline; filename=published.pdf');
 });
 
 test('downloads pdf from explicit download endpoint', function () {
@@ -155,6 +155,50 @@ test('downloads pdf from explicit download endpoint', function () {
     $response->assertOk();
     $response->assertHeader('content-type', 'application/pdf');
     $response->assertHeader('content-disposition', 'attachment; filename=downloadable.pdf');
+});
+
+test('pdf preview safely encodes quotes and control characters in the client filename', function () {
+    Storage::fake('local');
+    $announcement = seededAnnouncement(1);
+    $attachment = AnnouncementAttachment::factory()->create([
+        'announcement_id' => $announcement->id,
+        'filename' => "รายงาน \"final\"\r\nX-Injected: yes.pdf",
+        'stored_filename' => 'attachments/safe-preview.pdf',
+    ]);
+    Storage::disk('local')->put($attachment->stored_filename, 'pdf-content');
+
+    $response = get(route('procurement.pdf', [$announcement, $attachment]));
+    $disposition = $response->headers->get('content-disposition');
+
+    $response->assertOk()->assertHeaderMissing('X-Injected');
+    expect($disposition)->toBeString()
+        ->not->toContain("\r")
+        ->not->toContain("\n")
+        ->toContain('inline;')
+        ->toContain('filename=')
+        ->toContain('filename*=');
+});
+
+test('pdf download safely encodes quotes and control characters in the client filename', function () {
+    Storage::fake('local');
+    $announcement = seededAnnouncement(1);
+    $attachment = AnnouncementAttachment::factory()->create([
+        'announcement_id' => $announcement->id,
+        'filename' => "รายงาน \"final\"\r\nX-Injected: yes.pdf",
+        'stored_filename' => 'attachments/safe-download.pdf',
+    ]);
+    Storage::disk('local')->put($attachment->stored_filename, 'pdf-content');
+
+    $response = get(route('procurement.pdf.download', [$announcement, $attachment]));
+    $disposition = $response->headers->get('content-disposition');
+
+    $response->assertOk()->assertHeaderMissing('X-Injected');
+    expect($disposition)->toBeString()
+        ->not->toContain("\r")
+        ->not->toContain("\n")
+        ->toContain('attachment;')
+        ->toContain('filename=')
+        ->toContain('filename*=');
 });
 
 test('returns 404 pdf for invalid attachment', function () {

@@ -8,6 +8,8 @@ use App\Models\AnnouncementAttachment;
 use App\Models\ListingHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PdfController extends Controller
@@ -20,7 +22,7 @@ class PdfController extends Controller
             $this->streamAttachment($attachment);
         }, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => sprintf('inline; filename="%s"', $attachment->filename),
+            'Content-Disposition' => $this->contentDisposition('inline', $attachment->filename),
         ]);
     }
 
@@ -28,9 +30,12 @@ class PdfController extends Controller
     {
         $this->assertCanAccessAttachment($request, $announcement, $attachment);
 
-        return response()->streamDownload(function () use ($attachment): void {
+        return response()->stream(function () use ($attachment): void {
             $this->streamAttachment($attachment);
-        }, $attachment->filename, ['Content-Type' => 'application/pdf']);
+        }, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => $this->contentDisposition('attachment', $attachment->filename),
+        ]);
     }
 
     private function assertCanAccessAttachment(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): void
@@ -67,5 +72,13 @@ class PdfController extends Controller
             fpassthru($stream);
             fclose($stream);
         }
+    }
+
+    private function contentDisposition(string $type, string $clientFilename): string
+    {
+        $filename = preg_replace('/[\x00-\x1F\x7F\/\\\\]/u', '-', $clientFilename) ?: 'document.pdf';
+        $fallback = str_replace('%', '-', Str::ascii($filename)) ?: 'document.pdf';
+
+        return HeaderUtils::makeDisposition($type, $filename, $fallback);
     }
 }
