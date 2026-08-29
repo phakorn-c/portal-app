@@ -83,7 +83,7 @@ The seeded `https://demo.invalid/...` values are demonstration-only and are not 
 After the guarded reset in section 1, run these Todo-4 commands verbatim:
 
 ```bash
-./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=database laravel.test php artisan tinker --execute='$a = \App\Models\Announcement::findOrFail(1)->attachments()->firstOrFail(); $e = \App\Models\DocumentExtraction::firstOrCreate(["announcement_attachment_id" => $a->id], ["status" => "pending"]); $token = \Illuminate\Support\Str::uuid()->toString(); \App\Jobs\ProcessDocumentExtraction::dispatch($e->id, $e->attempt_count + 1, $token);'
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=database laravel.test php artisan tinker --execute='$a = \App\Models\Announcement::findOrFail(1)->attachments()->firstOrFail(); $e = \App\Models\DocumentExtraction::firstOrCreate(["announcement_attachment_id" => $a->id], ["status" => "pending"]); throw_unless(\App\Jobs\ProcessDocumentExtraction::dispatchFor($e->id), "Dispatch refused");'
 
 ./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=database laravel.test php artisan tinker --execute='throw_unless(\Illuminate\Support\Facades\DB::table("jobs")->count() === 1, "Expected one queued job");'
 
@@ -123,7 +123,7 @@ Run the two SQLite commands above before **each** command below. The PostgreSQL-
 ./vendor/bin/sail npx playwright test --workers=1 --trace=on
 ```
 
-### Measured results — 2026-08-14 rehearsal
+### Historical local results — 2026-08-14 rehearsal
 
 - Sail startup, PostgreSQL provisioning/name guard/reset, producer, exactly-one-row assertion, worker, and terminal assertion: all exited 0. The worker processed one `ProcessDocumentExtraction` job; the terminal state was `review`, error was null, and both queue tables were empty.
 - Full backend: **265 passed / 1,934 assertions**, exit 0.
@@ -134,7 +134,7 @@ Run the two SQLite commands above before **each** command below. The PostgreSQL-
 - Final PostgreSQL guard/reset/count assertion: exit 0 at **8 announcements / 4 attachments / 3 extractions**.
 - Limitation observed during this run: a broader PostgreSQL filter that also included all `DocumentExtraction` constraint tests produced **87 passes and 1 failure**. The expected duplicate-key exception aborts PostgreSQL's surrounding test transaction, so the test's subsequent count query receives SQLSTATE `25P02`; the same repository-wide SQLite suite remains green. This is a test-harness portability limitation, not evidence of real OCR or extraction accuracy.
 
-The full command/output transcript and trace archive are under `.omo/evidence/two-week-pre-ocr-readiness/task-10-two-week-pre-ocr-readiness*`.
+The command transcripts and traces from this rehearsal were local, ignored agent-workspace artifacts. They are not tracked repository evidence. Re-run the commands in section 4.3 to produce current evidence for a review.
 
 ## 5. Fallback Notes
 
@@ -149,3 +149,7 @@ The full command/output transcript and trace archive are under `.omo/evidence/tw
 - **Stale processing:** processing becomes recoverable after 360 seconds. The same `ProcessDocumentExtraction::dispatchFor()` path used by retry resets stale state under a row lock and queues a fresh token; a non-stale row is not taken over.
 - **Retry ceiling:** use the admin review page's retry action for `review` or `failed` rows. Attempt 3 is the hard ceiling; a stale third attempt is finalized as failed and no fourth dispatch occurs.
 - **Failed demo fixture:** seeded ID 8 is intentionally deterministic failure evidence. Retry may fail again by design; do not describe it as an OCR outage.
+
+## 7. Deployment Limitations
+
+This repository documents local Sail operation, deterministic demo data, and CI validation. It does not currently include a production or staging deployment workflow, hosting configuration, secrets contract, migration rollback procedure, supervised queue-worker configuration, or production observability setup. A successful local build or rehearsal is not evidence that a production-ready or deployed staging environment exists.
