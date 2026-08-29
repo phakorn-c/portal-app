@@ -5,6 +5,7 @@ use App\Models\Announcement;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
@@ -24,6 +25,18 @@ test('admin provenance fields accept a valid URL and reference', function () {
     $announcement = Announcement::query()->sole();
     expect($announcement->source_url)->toBe('https://example.test/notices/valid')
         ->and($announcement->source_reference)->toBe('VALID-REF-001');
+});
+
+test('source URL storage accepts the full validated 2048 character boundary', function () {
+    $sourceUrl = 'https://example.test/'.str_repeat('a', 2027);
+
+    postJson(route('admin.announcements.store'), attachmentValidationPayload([
+        'source_url' => $sourceUrl,
+    ]))->assertRedirect(route('admin.announcements.index'));
+
+    expect(strlen($sourceUrl))->toBe(2048)
+        ->and(Schema::getColumnType('announcements', 'source_url'))->toBe('text')
+        ->and(Announcement::query()->sole()->source_url)->toBe($sourceUrl);
 });
 
 test('invalid source URL is rejected without file result or job or a second announcement', function () {

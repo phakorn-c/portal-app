@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('announcements', function (Blueprint $table) {
-            $table->string('source_url')->nullable();
+            $table->text('source_url')->nullable();
             $table->string('source_reference')->nullable()->index();
         });
     }
