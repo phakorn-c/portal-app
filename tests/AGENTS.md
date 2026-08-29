@@ -37,4 +37,4 @@ Dual-stack testing: PestPHP for backend (Feature/Unit) and Playwright for browse
   - Backend: `./vendor/bin/pest`
   - Browser: `npm run test:e2e`
 - **Isolation**: Unit tests should not touch the database or boot the Laravel app.
-- **CI**: Both suites run on every push via GitHub Actions.
+- **CI**: Both suites run for pushes and pull requests targeting `develop`, `main`, `master`, `staging`, or `workos` via GitHub Actions.
