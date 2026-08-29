@@ -17,6 +17,24 @@ use Illuminate\Support\Facades\Hash;
 uses(RefreshDatabase::class);
 
 describe('env-driven admin bootstrap', function () {
+    it('never creates an administrator automatically in production', function () {
+        $environment = app()->environment();
+        app()->instance('env', 'production');
+        config([
+            'admin.email' => 'admin@example.com',
+            'admin.password' => 'password',
+            'admin.first_name' => 'Public',
+            'admin.last_name' => 'Default',
+        ]);
+
+        try {
+            expect(EnsureConfiguredAdminExists::handle())->toBeFalse()
+                ->and(User::query()->count())->toBe(0);
+        } finally {
+            app()->instance('env', $environment);
+        }
+    });
+
     describe('successful admin creation', function () {
         it('creates admin when all required config values are present', function () {
             config([

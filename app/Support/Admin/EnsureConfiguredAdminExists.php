@@ -20,6 +20,10 @@ class EnsureConfiguredAdminExists
      */
     public static function handle(): bool
     {
+        if (app()->isProduction()) {
+            return false;
+        }
+
         try {
             // Guard against missing users table (avoid pre-migration errors)
             if (! Schema::hasTable('users')) {
@@ -54,7 +58,7 @@ class EnsureConfiguredAdminExists
             ]);
 
             return true;
-        } catch (QueryException $e) {
+        } catch (QueryException) {
             // Database not available (e.g., during testing or before migrations)
             return false;
         }
