@@ -7,7 +7,9 @@ use App\Models\User;
 use App\Support\Procurement\Extraction\DocumentExtractor;
 use App\Support\Procurement\Extraction\ExtractionRequest;
 use App\Support\Procurement\Extraction\ExtractionResult;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Date;
@@ -59,6 +61,7 @@ test('job exposes the exact unique queue configuration without automatic retry',
 
     expect($job)->toBeInstanceOf(ShouldQueue::class)
         ->and($job)->toBeInstanceOf(ShouldBeUnique::class)
+        ->and($job)->toBeInstanceOf(ShouldBeUniqueUntilProcessing::class)
         ->and($job->extractionId)->toBe(42)
         ->and($job->expectedAttempt)->toBe(2)
         ->and($job->invocationToken)->toBe($token)
@@ -69,6 +72,36 @@ test('job exposes the exact unique queue configuration without automatic retry',
         ->and($job->failOnTimeout)->toBeTrue()
         ->and($job->afterCommit)->toBeTrue()
         ->and(property_exists($job, 'backoff'))->toBeFalse();
+});
+
+test('enqueue failure releases the unique lock for an immediate retry', function () {
+    $extraction = extractionForJob();
+    $failingDispatcher = Mockery::mock(Dispatcher::class);
+    $failingDispatcher->shouldReceive('dispatch')
+        ->once()
+        ->andThrow(new RuntimeException('queue unavailable'));
+    app()->instance(Dispatcher::class, $failingDispatcher);
+
+    expect(fn () => ProcessDocumentExtraction::dispatchFor($extraction->id))
+        ->toThrow(RuntimeException::class, 'queue unavailable');
+
+    $extraction->update(['status' => 'failed']);
+    $retryDispatcher = Mockery::mock(Dispatcher::class);
+    $retryDispatcher->shouldReceive('dispatch')
+        ->once()
+        ->with(Mockery::on(fn (ProcessDocumentExtraction $job): bool => $job->extractionId === $extraction->id));
+    app()->instance(Dispatcher::class, $retryDispatcher);
+
+    expect(ProcessDocumentExtraction::dispatchFor($extraction->id))->toBeTrue()
+        ->and($extraction->refresh()->status)->toBe('pending');
+});
+
+test('database queue reservation outlives the extraction timeout with margin', function () {
+    $job = new ProcessDocumentExtraction(42, 1, Str::uuid()->toString());
+    $retryAfter = config('queue.connections.database.retry_after');
+
+    expect($retryAfter)->toBeInt()
+        ->and($retryAfter)->toBeGreaterThanOrEqual($job->timeout + 30);
 });
 
 test('dispatch helper computes the next attempt and a fresh token', function () {

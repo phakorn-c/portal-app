@@ -7,14 +7,17 @@ use App\Models\DocumentExtraction;
 use App\Support\Procurement\Extraction\DocumentExtractor;
 use App\Support\Procurement\Extraction\ExtractionRequest;
 use App\Support\Procurement\Extraction\ExtractionResult;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Bus\Dispatcher;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
 
-class ProcessDocumentExtraction implements ShouldBeUnique, ShouldQueue
+class ProcessDocumentExtraction implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;
 
@@ -92,7 +95,20 @@ class ProcessDocumentExtraction implements ShouldBeUnique, ShouldQueue
             return false;
         }
 
-        self::dispatch($extractionId, $payload['expectedAttempt'], $payload['invocationToken']);
+        $job = new self($extractionId, $payload['expectedAttempt'], $payload['invocationToken']);
+        $lock = new UniqueLock(app(CacheRepository::class));
+
+        if (! $lock->acquire($job)) {
+            return false;
+        }
+
+        try {
+            app(Dispatcher::class)->dispatch($job);
+        } catch (Throwable $exception) {
+            $lock->release($job);
+
+            throw $exception;
+        }
 
         return true;
     }
