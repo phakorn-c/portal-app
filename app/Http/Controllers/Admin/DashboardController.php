@@ -13,6 +13,7 @@ class DashboardController extends Controller
     public function index()
     {
         $announcements = Announcement::with([
+            'attachments' => fn ($query) => $query->orderBy('id'),
             'attachments.extraction' => fn ($query) => $query->select(['id', 'announcement_attachment_id', 'status']),
         ])
             ->latest()

@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { resetDatabase } from './support/test-environment';
+import { artisan, resetDatabase } from './support/test-environment';
 
 async function loginAs(page: Page, email: string, password: string) {
     await page.goto('/login');
@@ -31,9 +31,9 @@ async function logout(page: Page) {
 
 async function openReviewFromDashboard(page: Page, announcementId: number) {
     await page.goto('/admin');
-    const link = page.locator(
-        `[data-test="extraction-review-link-${announcementId}"]`,
-    );
+    const link = page
+        .locator(`[data-test="extraction-review-link-${announcementId}"]`)
+        .first();
     await expect(link).toBeVisible();
     const href = await link.getAttribute('href');
     expect(href).toBeTruthy();
@@ -81,6 +81,63 @@ test('admin approves a seeded review extraction with one corrected field', async
     await expect(
         page.locator('[data-test="extraction-approved-note"]'),
     ).toBeVisible();
+});
+
+test('admin cannot approve an extraction after clearing the required budget', async ({
+    page,
+}) => {
+    resetDatabase();
+    await loginAs(page, 'admin@example.com', 'password');
+    await openReviewFromDashboard(page, 6);
+
+    await page.locator('#budget').fill('');
+    await page.locator('[data-test="extraction-approve-submit"]').click();
+
+    await expect(page.locator('#budget')).toHaveValue('');
+    await expect(page.locator('[data-test="extraction-status"]')).toHaveText(
+        'รอตรวจสอบ',
+    );
+    await expect(page.getByText('The budget field is required.')).toBeVisible();
+});
+
+test('review extraction at the attempt ceiling cannot be retried', async ({
+    page,
+}) => {
+    resetDatabase();
+    artisan(
+        'tinker',
+        '--execute',
+        "\\App\\Models\\Announcement::findOrFail(6)->attachments()->firstOrFail()->extraction()->update(['status' => 'review', 'attempt_count' => 3]);",
+    );
+    await loginAs(page, 'admin@example.com', 'password');
+    await openReviewFromDashboard(page, 6);
+
+    await expect(page.locator('[data-test="extraction-attempts"]')).toHaveText(
+        'ความพยายาม 3/3',
+    );
+    await expect(page.locator('[data-test="extraction-retry"]')).toHaveCount(0);
+});
+
+test('dashboard exposes every extraction when an announcement has multiple attachments', async ({
+    page,
+}) => {
+    resetDatabase();
+    artisan(
+        'tinker',
+        '--execute',
+        "$announcement = \\App\\Models\\Announcement::findOrFail(6); $attachment = $announcement->attachments()->create(['filename' => 'second-review.pdf', 'stored_filename' => 'attachments/second-review.pdf', 'file_size' => 100, 'mime_type' => 'application/pdf', 'document_kind' => 'unknown']); $attachment->extraction()->create(['status' => 'review', 'attempt_count' => 1]);",
+    );
+    await loginAs(page, 'admin@example.com', 'password');
+    await page.goto('/admin');
+
+    const links = page.locator('[data-test="extraction-review-link-6"]');
+    await expect(links).toHaveCount(2);
+    await expect(links.last()).toContainText('second-review.pdf');
+    await links.last().click();
+    await expect(
+        page.locator('[data-test="extraction-review-page"]'),
+    ).toBeVisible();
+    await expect(page.getByText('second-review.pdf')).toBeVisible();
 });
 
 test('seeded failure shows the error and retry reaches terminal failed again', async ({
@@ -132,7 +189,7 @@ test('registered user is denied access to the extraction review page', async ({
     await loginAs(page, 'admin@example.com', 'password');
 
     await page.goto('/admin');
-    const link = page.locator('[data-test="extraction-review-link-6"]');
+    const link = page.locator('[data-test="extraction-review-link-6"]').first();
     await expect(link).toBeVisible();
     const href = await link.getAttribute('href');
     expect(href).toBeTruthy();

@@ -14,6 +14,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { DashboardExtractionLinks } from '@/components/extraction-review/dashboard-extraction-links';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -44,7 +45,6 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import * as adminRoutes from '@/routes/admin';
 import * as announcementRoutes from '@/routes/admin/announcements';
-import { show as reviewShow } from '@/routes/admin/announcements/extractions';
 import * as userRoutes from '@/routes/admin/users';
 
 type Announcement = {
@@ -61,7 +61,10 @@ type Announcement = {
     publication_status: 'draft' | 'published' | 'hidden';
     source_url: string | null;
     source_reference: string | null;
-    attachments: { extraction?: { id: number; status: string } | null }[];
+    attachments: {
+        filename: string;
+        extraction?: { id: number; status: string } | null;
+    }[];
 };
 
 type PaginatedData<T> = {
@@ -93,10 +96,6 @@ interface AdminDashboardProps {
 function formatBudget(amount: number) {
     return amount.toLocaleString('th-TH');
 }
-const extractionLabels: Record<string, string> = {
-    review: 'รอตรวจสอบ',
-    failed: 'ล้มเหลว',
-};
 type AnnouncementModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -578,21 +577,20 @@ export default function AdminDashboard({
             key: 'status',
             header: 'สถานะ',
             cell: (item) => <StatusBadge status={item.status} />,
+            className: 'min-w-32 whitespace-nowrap',
+            headerClassName: 'min-w-32 whitespace-nowrap',
         },
         {
             key: 'extraction',
             header: 'การสกัดเอกสาร',
-            cell: (item) => {
-                const ex = item.attachments?.[0]?.extraction;
-                return ex ? (
-                    <Link
-                        href={reviewShow.url([item.id, ex.id])}
-                        data-test={`extraction-review-link-${item.id}`}
-                    >
-                        {extractionLabels[ex.status] ?? ex.status}
-                    </Link>
-                ) : null;
-            },
+            cell: (item) => (
+                <DashboardExtractionLinks
+                    announcementId={item.id}
+                    attachments={item.attachments}
+                />
+            ),
+            className: 'min-w-72',
+            headerClassName: 'min-w-72 whitespace-nowrap',
         },
         {
             key: 'actions',
@@ -637,8 +635,8 @@ export default function AdminDashboard({
                     </Button>
                 </div>
             ),
-            className: 'text-right',
-            headerClassName: 'text-right',
+            className: 'min-w-32 whitespace-nowrap text-right',
+            headerClassName: 'min-w-32 whitespace-nowrap text-right',
         },
     ];
 
@@ -656,20 +654,26 @@ export default function AdminDashboard({
             <Head title="Admin Dashboard" />
             <div className="flex flex-col gap-8 px-4 py-6 md:px-8">
                 <div className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6 md:p-8">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                                 <ShieldCheck className="h-4 w-4" />
                                 Admin Portal
                             </div>
                             <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">
-                                หน้าจัดการประกาศการจัดซื้อจัดจ้าง
+                                หน้าจัดการประกาศ{' '}
+                                <span className="whitespace-nowrap">
+                                    การจัดซื้อจัดจ้าง
+                                </span>
                             </h1>
                             <p className="text-sm text-muted-foreground">
-                                ดูแลข้อมูลและควบคุมการประกาศทั้งหมดของจังหวัดขอนแก่น
+                                ดูแลข้อมูลและควบคุมการประกาศทั้งหมด{' '}
+                                <span className="whitespace-nowrap">
+                                    ของจังหวัดขอนแก่น
+                                </span>
                             </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <Button
                                 asChild
                                 variant="outline"
@@ -690,7 +694,7 @@ export default function AdminDashboard({
                         </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 lg:grid-cols-3">
                         {statCards.map((stat) => (
                             <Card key={stat.label}>
                                 <CardContent className="flex items-center gap-4 pt-6">
@@ -725,7 +729,7 @@ export default function AdminDashboard({
                 </div>
 
                 <Card>
-                    <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                             <CardTitle className="text-xl">
                                 รายการประกาศทั้งหมด

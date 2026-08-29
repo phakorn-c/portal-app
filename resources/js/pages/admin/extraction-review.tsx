@@ -53,13 +53,13 @@ export default function ExtractionReview({
 
     const canRetry =
         ['review', 'failed'].includes(extraction.status) &&
-        !(extraction.status === 'failed' && extraction.attempt_count >= 3);
+        extraction.attempt_count < 3;
 
     const submitApproval = (event: FormEvent) => {
         event.preventDefault();
         transform((formData) => ({
             ...formData,
-            budget: Number(formData.budget),
+            budget: formData.budget === '' ? null : Number(formData.budget),
             location: formData.location || null,
             reference_price:
                 formData.reference_price === ''
