@@ -94,7 +94,7 @@ final class AttachmentStorage
         }
 
         try {
-            [$attachment, $oldStoredKeys] = DB::transaction(function () use (
+            [$attachment, $extraction, $oldStoredKeys] = DB::transaction(function () use (
                 $announcement,
                 $announcementAttributes,
                 $disk,
@@ -120,13 +120,9 @@ final class AttachmentStorage
                 ]);
                 $extraction = $attachment->extraction()->create(['status' => 'pending']);
 
-                if (! ProcessDocumentExtraction::dispatchFor($extraction->id)) {
-                    throw AttachmentStorageException::dispatchFailed();
-                }
-
                 $oldAttachments->each->delete();
 
-                return [$attachment, $this->replaceableKeys($oldAttachments)];
+                return [$attachment, $extraction, $this->replaceableKeys($oldAttachments)];
             });
         } catch (QueryException $exception) {
             $this->deleteNewFiles($disk, $uploadingKey, $finalKey);
@@ -140,6 +136,24 @@ final class AttachmentStorage
             $this->deleteNewFiles($disk, $uploadingKey, $finalKey);
 
             throw $exception;
+        }
+
+        try {
+            $dispatchFailed = ! ProcessDocumentExtraction::dispatchFor($extraction->id);
+        } catch (Throwable) {
+            $dispatchFailed = true;
+        }
+
+        if ($dispatchFailed) {
+            DocumentExtraction::query()
+                ->whereKey($extraction->id)
+                ->where('status', 'pending')
+                ->where('attempt_count', 0)
+                ->update([
+                    'status' => 'failed',
+                    'error_message' => 'Extraction queue dispatch failed. Retry from the review page.',
+                    'processed_at' => now(),
+                ]);
         }
 
         foreach ($oldStoredKeys as $oldStoredKey) {

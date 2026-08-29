@@ -3,9 +3,11 @@
 use App\Jobs\ProcessDocumentExtraction;
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
+use App\Models\DocumentExtraction;
 use App\Models\User;
 use App\Support\Procurement\AttachmentStorage;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -71,6 +73,57 @@ test('storage stages a PDF before promoting it into an atomic attachment and ext
             && Str::isUuid($job->invocationToken);
     });
     Queue::assertPushed(ProcessDocumentExtraction::class, 1);
+});
+
+test('queue dispatch failure preserves the committed attachment and marks extraction for retry', function () {
+    $announcement = Announcement::factory()->create();
+    Bus::partialMock()
+        ->shouldReceive('dispatch')
+        ->once()
+        ->andThrow(new RuntimeException('database queue unavailable'));
+
+    $attachment = app(AttachmentStorage::class)->store(
+        $announcement,
+        attachmentPdf('dispatch-failure.pdf', 'dispatch-failure'),
+    );
+
+    $extraction = $attachment->extraction()->sole();
+    expect($attachment->exists)->toBeTrue()
+        ->and(Storage::disk('local')->exists($attachment->stored_filename))->toBeTrue()
+        ->and($extraction->status)->toBe('failed')
+        ->and($extraction->attempt_count)->toBe(0)
+        ->and($extraction->error_message)->toBe('Extraction queue dispatch failed. Retry from the review page.')
+        ->and($extraction->processed_at)->not()->toBeNull();
+    assertDatabaseCount('announcement_attachments', 1);
+    assertDatabaseCount('document_extractions', 1);
+});
+
+test('queue acknowledgement failure cannot overwrite extraction processing that already started', function () {
+    $announcement = Announcement::factory()->create();
+    Bus::partialMock()
+        ->shouldReceive('dispatch')
+        ->once()
+        ->andReturnUsing(function (ProcessDocumentExtraction $job): never {
+            DocumentExtraction::query()->whereKey($job->extractionId)->update([
+                'status' => 'processing',
+                'attempt_count' => 1,
+                'processing_token' => $job->invocationToken,
+                'processing_started_at' => now(),
+            ]);
+
+            throw new RuntimeException('queue acknowledgement lost');
+        });
+
+    $attachment = app(AttachmentStorage::class)->store(
+        $announcement,
+        attachmentPdf('acknowledgement-failure.pdf', 'acknowledgement-failure'),
+    );
+
+    $extraction = $attachment->extraction()->sole();
+    expect($extraction->status)->toBe('processing')
+        ->and($extraction->attempt_count)->toBe(1)
+        ->and($extraction->error_message)->toBeNull()
+        ->and(Storage::disk('local')->exists($attachment->stored_filename))->toBeTrue();
 });
 
 test('admin upload refuses to run while the attachment storage lock is held', function () {
