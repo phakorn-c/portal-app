@@ -53,7 +53,7 @@ test('out-of-set status is rejected by the database', function () {
 });
 
 test('method accepts exactly the allowed set or null', function () {
-    foreach (['fake_embedded_text', 'fake_ocr_placeholder', 'fake_unknown'] as $method) {
+    foreach (['fake_embedded_text', 'fake_ocr_placeholder', 'fake_unknown', 'portal-ocr'] as $method) {
         $extraction = DocumentExtraction::factory()->create(['method' => $method]);
 
         expect($extraction->refresh()->method)->toBe($method);

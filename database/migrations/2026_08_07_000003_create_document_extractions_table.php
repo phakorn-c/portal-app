@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('announcement_attachment_id')->unique()->constrained()->cascadeOnDelete();
             // enum -> inline CHECK constraint on SQLite + PostgreSQL grammars.
             $table->enum('status', ['pending', 'processing', 'review', 'failed', 'approved'])->default('pending');
-            $table->enum('method', ['fake_embedded_text', 'fake_ocr_placeholder', 'fake_unknown'])->nullable();
+            $table->enum('method', ['fake_embedded_text', 'fake_ocr_placeholder', 'fake_unknown', 'portal-ocr'])->nullable();
             $table->json('candidate')->nullable();
             $table->json('confidence')->nullable();
             $table->json('warnings')->nullable();
