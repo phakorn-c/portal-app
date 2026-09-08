@@ -122,6 +122,141 @@ test('importing the same file twice keeps the imported record graph unchanged', 
     portalImportCleanup($importPath);
 });
 
+test('a representative portal fixture round trips to the exact draft record graph idempotently', function () {
+    Storage::fake('local');
+
+    $importPath = base_path('tests/Fixtures/Procurement/portal-import-round-trip/portal_import.json');
+    $sourcePdf = base_path('tests/Fixtures/Procurement/portal-import-round-trip/portal_attachments/drainage-project.pdf');
+    $sha256 = hash_file('sha256', $sourcePdf);
+    $fileSize = filesize($sourcePdf);
+
+    expect($sha256)->toBeString()
+        ->and($fileSize)->toBeInt();
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $announcement = Announcement::query()->sole();
+    $attachment = AnnouncementAttachment::query()->sole();
+    $extraction = DocumentExtraction::query()->sole();
+
+    expect([
+        'title' => $announcement->title,
+        'organization' => $announcement->organization,
+        'category' => $announcement->category,
+        'method' => $announcement->method,
+        'budget' => $announcement->budget,
+        'location' => $announcement->location,
+        'reference_price' => $announcement->reference_price,
+        'contact_name' => $announcement->contact_name,
+        'contact_phone' => $announcement->contact_phone,
+        'description' => $announcement->description,
+        'status' => $announcement->status,
+        'publication_status' => $announcement->publication_status,
+        'deadline' => $announcement->deadline->toDateString(),
+        'published_at' => $announcement->published_at,
+        'source_url' => $announcement->source_url,
+        'source_reference' => $announcement->source_reference,
+    ])->toBe([
+        'title' => 'ประกวดราคาจ้างปรับปรุงระบบระบายน้ำภายในมหาวิทยาลัย',
+        'organization' => 'มหาวิทยาลัยขอนแก่น',
+        'category' => 'construction',
+        'method' => 'e-bidding',
+        'budget' => '9876543.21',
+        'location' => 'อำเภอเมืองขอนแก่น จังหวัดขอนแก่น',
+        'reference_price' => 9765000,
+        'contact_name' => 'กองคลัง งานพัสดุ',
+        'contact_phone' => '043-202-555',
+        'description' => 'ปรับปรุงระบบระบายน้ำตามเอกสารประกวดราคา',
+        'status' => 'closing',
+        'publication_status' => 'draft',
+        'deadline' => '2026-09-18',
+        'published_at' => null,
+        'source_url' => 'https://example.test/procurement/drainage-2569',
+        'source_reference' => 'kku:drainage-2569-001',
+    ])->and([
+        'announcement_id' => $attachment->announcement_id,
+        'filename' => $attachment->filename,
+        'stored_filename' => $attachment->stored_filename,
+        'file_size' => $attachment->file_size,
+        'mime_type' => $attachment->mime_type,
+        'sha256' => $attachment->sha256,
+        'document_kind' => $attachment->document_kind,
+    ])->toBe([
+        'announcement_id' => $announcement->id,
+        'filename' => 'drainage-project.pdf',
+        'stored_filename' => 'attachments/managed/'.$sha256.'.pdf',
+        'file_size' => $fileSize,
+        'mime_type' => 'application/pdf',
+        'sha256' => $sha256,
+        'document_kind' => 'unknown',
+    ])->and([
+        'announcement_attachment_id' => $extraction->announcement_attachment_id,
+        'status' => $extraction->status,
+        'method' => $extraction->method,
+        'candidate' => $extraction->candidate,
+        'confidence' => $extraction->confidence,
+        'warnings' => $extraction->warnings,
+        'raw_text' => $extraction->raw_text,
+        'error_message' => $extraction->error_message,
+        'attempt_count' => $extraction->attempt_count,
+        'processing_token' => $extraction->processing_token,
+        'processing_started_at' => $extraction->processing_started_at,
+        'approved_at' => $extraction->approved_at,
+        'approved_by' => $extraction->approved_by,
+    ])->toBe([
+        'announcement_attachment_id' => $attachment->id,
+        'status' => 'review',
+        'method' => 'portal-ocr',
+        'candidate' => [
+            'title' => 'ประกวดราคาจ้างปรับปรุงระบบระบายน้ำภายในมหาวิทยาลัย',
+            'organization' => 'มหาวิทยาลัยขอนแก่น',
+            'category' => 'construction',
+            'method' => 'e-bidding',
+            'budget' => '9876543.21',
+            'location' => 'อำเภอเมืองขอนแก่น จังหวัดขอนแก่น',
+            'reference_price' => '9765000.00',
+            'contact_name' => 'กองคลัง งานพัสดุ',
+            'contact_phone' => '043-202-555',
+            'description' => 'ปรับปรุงระบบระบายน้ำตามเอกสารประกวดราคา',
+            'deadline' => '2026-09-18',
+            'status' => 'closing',
+        ],
+        'confidence' => [],
+        'warnings' => ['budget_needs_review', 'deadline_needs_review'],
+        'raw_text' => "มหาวิทยาลัยขอนแก่น\nประกวดราคาจ้างปรับปรุงระบบระบายน้ำ\nวงเงินงบประมาณ 9,876,543.21 บาท\nกำหนดยื่นข้อเสนอวันที่ 18 กันยายน 2569",
+        'error_message' => null,
+        'attempt_count' => 0,
+        'processing_token' => null,
+        'processing_started_at' => null,
+        'approved_at' => null,
+        'approved_by' => null,
+    ]);
+
+    expect($extraction->processed_at)->not->toBeNull()
+        ->and(Storage::disk('local')->get($attachment->stored_filename))->toBe(file_get_contents($sourcePdf));
+
+    $firstGraph = [
+        'announcement' => $announcement->getAttributes(),
+        'attachment' => $attachment->getAttributes(),
+        'extraction' => $extraction->getAttributes(),
+    ];
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=0 skipped=1 errors=0')
+        ->assertSuccessful();
+
+    expect(Announcement::query()->count())->toBe(1)
+        ->and(AnnouncementAttachment::query()->count())->toBe(1)
+        ->and(DocumentExtraction::query()->count())->toBe(1)
+        ->and([
+            'announcement' => Announcement::query()->sole()->getAttributes(),
+            'attachment' => AnnouncementAttachment::query()->sole()->getAttributes(),
+            'extraction' => DocumentExtraction::query()->sole()->getAttributes(),
+        ])->toBe($firstGraph);
+});
+
 test('a missing PDF reports an explicit row error without creating partial records', function () {
     Storage::fake('local');
 
