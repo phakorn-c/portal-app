@@ -61,7 +61,7 @@ final class ImportPortalAnnouncements extends Command
             }
 
             $row = $this->normalize($row);
-            $validator = Validator::make($row, $this->rules());
+            $validator = Validator::make($row, $this->rules(), $this->messages());
 
             if ($validator->fails()) {
                 $this->error("Row {$rowNumber}: ".implode(' ', $validator->errors()->all()));
@@ -303,6 +303,16 @@ final class ImportPortalAnnouncements extends Command
             'validation_flags' => ['sometimes', 'array', 'list'],
             'validation_flags.*' => ['string'],
             'raw_text' => ['nullable', 'string'],
+        ];
+    }
+
+    private function messages(): array
+    {
+        return [
+            'budget.required' => 'The budget field is required; the importer does not generate a fallback for this NOT NULL field.',
+            'budget.numeric' => 'The budget field must be an explicitly extracted number; the importer does not generate a fallback.',
+            'deadline.required' => 'The deadline field is required; the importer does not generate a fallback for this NOT NULL field.',
+            'deadline.date_format' => 'The deadline field must be an explicitly extracted date in YYYY-MM-DD format; the importer does not generate a fallback.',
         ];
     }
 }

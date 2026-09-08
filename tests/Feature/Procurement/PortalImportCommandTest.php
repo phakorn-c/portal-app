@@ -154,7 +154,7 @@ test('invalid rows report their row number while valid rows still import', funct
     ]);
 
     artisan('portal:import', ['path' => $importPath])
-        ->expectsOutputToContain('Row 2: The budget field is required.')
+        ->expectsOutputToContain('Row 2: The budget field is required; the importer does not generate a fallback for this NOT NULL field.')
         ->expectsOutput('Import complete: imported=1 skipped=0 errors=1')
         ->assertFailed();
 
@@ -162,6 +162,68 @@ test('invalid rows report their row number while valid rows still import', funct
 
     expect(Announcement::query()->count())->toBe(1)
         ->and(Announcement::query()->sole()->publication_status)->toBe('draft');
+});
+
+test('missing budget and deadline are rejected instead of receiving NOT NULL fallbacks', function () {
+    Storage::fake('local');
+
+    $importPath = portalImportFileWithAttachment([
+        portalImportRow([
+            'budget' => null,
+        ]),
+        portalImportRow([
+            'record_key' => 'kku:notice-002',
+            'deadline' => null,
+        ]),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutputToContain('Row 1: The budget field is required; the importer does not generate a fallback for this NOT NULL field.')
+        ->expectsOutputToContain('Row 2: The deadline field is required; the importer does not generate a fallback for this NOT NULL field.')
+        ->expectsOutput('Import complete: imported=0 skipped=0 errors=2')
+        ->assertFailed();
+
+    expect(Announcement::query()->count())->toBe(0)
+        ->and(AnnouncementAttachment::query()->count())->toBe(0)
+        ->and(DocumentExtraction::query()->count())->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+
+    portalImportCleanup($importPath);
+});
+
+test('review flags preserve the provenance of accepted budget and deadline values', function () {
+    Storage::fake('local');
+
+    $importPath = portalImportFileWithAttachment([
+        portalImportRow([
+            'budget' => '1.00',
+            'deadline' => '2026-10-30',
+            'status' => 'closing',
+            'publication_status' => 'published',
+            'published_at' => '2026-09-01 09:00:00',
+            'validation_flags' => ['budget_needs_review', 'deadline_needs_review'],
+            'raw_text' => "วงเงิน 1.00 บาท\nกำหนดยื่นข้อเสนอ 30/10/2569",
+        ]),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $announcement = Announcement::query()->sole();
+    $extraction = DocumentExtraction::query()->sole();
+
+    expect($announcement->budget)->toBe('1.00')
+        ->and($announcement->deadline->toDateString())->toBe('2026-10-30')
+        ->and($announcement->status)->toBe('closing')
+        ->and($announcement->publication_status)->toBe('draft')
+        ->and($announcement->published_at)->toBeNull()
+        ->and($extraction->candidate['budget'])->toBe('1.00')
+        ->and($extraction->candidate['deadline'])->toBe('2026-10-30')
+        ->and($extraction->warnings)->toBe(['budget_needs_review', 'deadline_needs_review'])
+        ->and($extraction->raw_text)->toBe("วงเงิน 1.00 บาท\nกำหนดยื่นข้อเสนอ 30/10/2569");
+
+    portalImportCleanup($importPath);
 });
 
 test('an invalid JSON document fails before importing anything', function () {
