@@ -187,14 +187,21 @@ final class ImportPortalAnnouncements extends Command
         }
 
         $root = realpath(dirname($importPath).'/portal_attachments');
-        $sourcePath = $root === false ? false : realpath($root.'/'.$pdfPath);
 
-        if ($root === false || $sourcePath === false || ! str_starts_with($sourcePath, $root.DIRECTORY_SEPARATOR)) {
-            throw new RuntimeException('The pdf_path must resolve inside portal_attachments.');
+        if ($root === false) {
+            throw new RuntimeException('The portal_attachments directory is missing or unreadable.');
         }
 
-        if (! is_file($sourcePath) || ! is_readable($sourcePath)) {
+        $candidatePath = $root.'/'.$pdfPath;
+
+        if (! is_file($candidatePath) || ! is_readable($candidatePath)) {
             throw new RuntimeException('The source PDF is missing or unreadable.');
+        }
+
+        $sourcePath = realpath($candidatePath);
+
+        if ($sourcePath === false || ! str_starts_with($sourcePath, $root.DIRECTORY_SEPARATOR)) {
+            throw new RuntimeException('The pdf_path must resolve inside portal_attachments.');
         }
 
         $stream = fopen($sourcePath, 'rb');

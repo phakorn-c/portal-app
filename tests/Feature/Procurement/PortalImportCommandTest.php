@@ -96,12 +96,49 @@ test('importing the same file twice keeps the imported record graph unchanged', 
         ])->toBe($firstImport)
         ->and($announcement->publication_status)->toBe('draft')
         ->and($attachment->filename)->toBe('notice-001.pdf')
+        ->and($attachment->stored_filename)->toBe('attachments/managed/'.$attachment->sha256.'.pdf')
+        ->and($attachment->sha256)->toBe(hash('sha256', portalImportPdfContents()))
+        ->and($attachment->document_kind)->toBe('unknown')
         ->and($extraction->status)->toBe('review')
         ->and($extraction->method)->toBe('portal-ocr')
+        ->and($extraction->candidate)->toBe([
+            'title' => 'ประกวดราคาซื้อครุภัณฑ์คอมพิวเตอร์',
+            'organization' => 'มหาวิทยาลัยขอนแก่น',
+            'category' => 'goods',
+            'method' => 'e-bidding',
+            'budget' => '1500000.00',
+            'location' => 'ขอนแก่น',
+            'reference_price' => '1480000.00',
+            'contact_name' => 'งานพัสดุ',
+            'contact_phone' => '043-000-601',
+            'description' => 'ข้อมูลจาก portal-ocr',
+            'deadline' => '2026-09-30',
+            'status' => 'open',
+        ])
         ->and($extraction->warnings)->toBe(['budget_needs_review'])
         ->and($extraction->raw_text)->toBe("OCR line one\nOCR line two");
 
     expect(Storage::disk('local')->exists($attachment->stored_filename))->toBeTrue();
+    portalImportCleanup($importPath);
+});
+
+test('a missing PDF reports an explicit row error without creating partial records', function () {
+    Storage::fake('local');
+
+    $importPath = portalImportFileWithAttachment([
+        portalImportRow(['pdf_path' => 'missing.pdf']),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutputToContain('Row 1: Database import failed: The source PDF is missing or unreadable.')
+        ->expectsOutput('Import complete: imported=0 skipped=0 errors=1')
+        ->assertFailed();
+
+    expect(Announcement::query()->count())->toBe(0)
+        ->and(AnnouncementAttachment::query()->count())->toBe(0)
+        ->and(DocumentExtraction::query()->count())->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+
     portalImportCleanup($importPath);
 });
 
@@ -186,9 +223,14 @@ function portalImportFileWithAttachment(array $rows): string
 
     $path = $directory.'/portal_import.json';
     file_put_contents($path, json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-    file_put_contents($attachments.'/notice-001.pdf', "%PDF-1.4\n%%EOF\n");
+    file_put_contents($attachments.'/notice-001.pdf', portalImportPdfContents());
 
     return $path;
+}
+
+function portalImportPdfContents(): string
+{
+    return "%PDF-1.4\n%%EOF\n";
 }
 
 function portalImportCleanup(string $path): void
