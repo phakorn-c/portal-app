@@ -1,0 +1,26 @@
+[
+    {
+        "title": "ประกวดราคาจ้างปรับปรุงระบบระบายน้ำภายในมหาวิทยาลัย",
+        "organization": "มหาวิทยาลัยขอนแก่น",
+        "category": "construction",
+        "method": "e-bidding",
+        "budget": "9876543.21",
+        "location": "อำเภอเมืองขอนแก่น จังหวัดขอนแก่น",
+        "reference_price": "9765000.00",
+        "contact_name": "กองคลัง งานพัสดุ",
+        "contact_phone": "043-202-555",
+        "description": "ปรับปรุงระบบระบายน้ำตามเอกสารประกวดราคา",
+        "status": "closing",
+        "publication_status": "published",
+        "published_at": "2026-09-01 09:00:00",
+        "deadline": "2026-09-18",
+        "pdf_path": "drainage-project.pdf",
+        "source_url": "https://example.test/procurement/drainage-2569",
+        "record_key": "kku:drainage-2569-001",
+        "validation_flags": [
+            "budget_needs_review",
+            "deadline_needs_review"
+        ],
+        "raw_text": "มหาวิทยาลัยขอนแก่น\nประกวดราคาจ้างปรับปรุงระบบระบายน้ำ\nวงเงินงบประมาณ 9,876,543.21 บาท\nกำหนดยื่นข้อเสนอวันที่ 18 กันยายน 2569"
+    }
+]
