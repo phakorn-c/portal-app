@@ -11,7 +11,8 @@ import {
     SlidersHorizontal,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ProcurementMethodLabel } from '@/components/procurement-method-label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +39,7 @@ import { Slider } from '@/components/ui/slider';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Switch } from '@/components/ui/switch';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import { formatThaiBudget, formatThaiDate } from '@/lib/procurement-format';
 import type { SharedData } from '@/types';
 import type { FilterState } from '@/types/procurement';
 
@@ -73,30 +75,6 @@ type PageProps = SharedData & {
         categoryLabels: Record<string, string>;
     };
 };
-
-function formatBudget(amount: number) {
-    return amount.toLocaleString('th-TH');
-}
-
-function formatDate(value: string): string {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return date.toLocaleDateString('th-TH', {
-        timeZone: 'Asia/Bangkok',
-    });
-}
-
-function parseBudget(value: number | string): number {
-    if (typeof value === 'number') {
-        return value;
-    }
-
-    return Number.parseFloat(value) || 0;
-}
 
 function readCookie(name: string): string | null {
     if (typeof document === 'undefined') {
@@ -247,15 +225,6 @@ export default function ProcurementSearch() {
     const canCreateSavedSearch =
         auth.user !== null && auth.user.email_verified_at !== null;
 
-    const cards = useMemo(
-        () =>
-            announcements.data.map((announcement) => ({
-                ...announcement,
-                budget: parseBudget(announcement.budget),
-            })),
-        [announcements.data],
-    );
-
     const clearAllFilters = () => {
         const next: FilterState = {
             query: '',
@@ -385,13 +354,17 @@ export default function ProcurementSearch() {
                         <div className="space-y-3">
                             <h1 className="text-3xl font-black tracking-tight text-foreground md:text-4xl">
                                 ค้นหาและประกาศ{' '}
-                                <span className="text-primary">
+                                <span className="inline-block text-primary">
                                     จัดซื้อจัดจ้าง
                                 </span>
                             </h1>
                             <p className="max-w-2xl text-base text-muted-foreground md:text-lg">
                                 ตรวจสอบความโปร่งใสในการใช้จ่ายภาครัฐ
-                                ค้นหาโอกาสในการยื่นข้อเสนอโครงการจัดซื้อจัดจ้างทั่วจังหวัดขอนแก่น
+                                ค้นหาโอกาสในการยื่นข้อเสนอโครงการ{' '}
+                                <span className="whitespace-nowrap">
+                                    จัดซื้อจัดจ้าง
+                                </span>
+                                ทั่วจังหวัดขอนแก่น
                             </p>
                         </div>
                         <div className="flex flex-col gap-3 md:flex-row">
@@ -435,9 +408,11 @@ export default function ProcurementSearch() {
                         <Card className="sticky top-24">
                             <CardHeader className="border-b border-border pb-4">
                                 <div className="flex items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                                        <SlidersHorizontal className="h-5 w-5 text-primary" />
-                                        ตัวกรอง
+                                    <CardTitle>
+                                        <h2 className="flex items-center gap-2 text-xl font-bold">
+                                            <SlidersHorizontal className="h-5 w-5 text-primary" />
+                                            ตัวกรอง
+                                        </h2>
                                     </CardTitle>
                                     <Button
                                         variant="ghost"
@@ -451,9 +426,9 @@ export default function ProcurementSearch() {
                             </CardHeader>
                             <CardContent className="space-y-8 pt-6">
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
+                                    <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         ช่วงงบประมาณ
-                                    </h4>
+                                    </h3>
                                     <div className="px-1">
                                         <Slider
                                             value={budgetRange}
@@ -471,6 +446,10 @@ export default function ProcurementSearch() {
                                             min={0}
                                             max={10000000}
                                             step={100000}
+                                            thumbLabels={[
+                                                'งบประมาณต่ำสุด',
+                                                'งบประมาณสูงสุด',
+                                            ]}
                                             className="w-full"
                                         />
                                         <div className="mt-3 flex justify-between text-sm text-muted-foreground">
@@ -505,9 +484,9 @@ export default function ProcurementSearch() {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
+                                    <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         หน่วยงาน / ภาคส่วน
-                                    </h4>
+                                    </h3>
                                     <div className="custom-scrollbar max-h-48 space-y-2 overflow-y-auto pr-2">
                                         {taxonomy.organizations.map(
                                             (organization) => (
@@ -538,9 +517,9 @@ export default function ProcurementSearch() {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
+                                    <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         วิธีการจัดซื้อจัดจ้าง
-                                    </h4>
+                                    </h3>
                                     <div className="space-y-2">
                                         {taxonomy.methods.map((method) => (
                                             <label
@@ -561,7 +540,9 @@ export default function ProcurementSearch() {
                                                     }
                                                 />
                                                 <span className="text-sm text-muted-foreground transition-colors group-hover:text-primary">
-                                                    {method.label}
+                                                    <ProcurementMethodLabel
+                                                        label={method.label}
+                                                    />
                                                 </span>
                                             </label>
                                         ))}
@@ -569,9 +550,9 @@ export default function ProcurementSearch() {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <h4 className="text-sm font-bold tracking-wide text-foreground uppercase">
+                                    <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
                                         หมวดหมู่ / ประเภทงาน
-                                    </h4>
+                                    </h3>
                                     <div className="space-y-2">
                                         {taxonomy.categories.map((category) => (
                                             <label
@@ -603,6 +584,7 @@ export default function ProcurementSearch() {
                     </aside>
 
                     <div className="space-y-6 lg:col-span-9">
+                        <h2 className="sr-only">ผลการค้นหา</h2>
                         <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center">
                             <div className="space-y-2">
                                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -622,6 +604,7 @@ export default function ProcurementSearch() {
                                             {filter.label}
                                             <button
                                                 type="button"
+                                                aria-label={`ลบตัวกรอง ${filter.label}`}
                                                 onClick={filter.onRemove}
                                                 className="rounded-full hover:bg-primary/20"
                                             >
@@ -701,10 +684,10 @@ export default function ProcurementSearch() {
                         </div>
 
                         <div className="space-y-4">
-                            {cards.map((announcement) => (
+                            {announcements.data.map((announcement) => (
                                 <article
                                     key={announcement.id}
-                                    className={`group rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-md ${
+                                    className={`group min-w-0 rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-md ${
                                         announcement.status === 'closed'
                                             ? 'border-border bg-muted/30 opacity-80 hover:opacity-100'
                                             : 'border-border'
@@ -720,37 +703,43 @@ export default function ProcurementSearch() {
                                             </span>
                                         </div>
 
-                                        <h3 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary">
+                                        <h3 className="text-base leading-relaxed font-bold text-balance text-foreground transition-colors group-hover:text-primary sm:text-lg">
                                             {announcement.title}
                                         </h3>
 
                                         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex min-w-0 items-start gap-1.5">
                                                 <Building2 className="h-4 w-4 text-primary" />
-                                                <span>
+                                                <span className="min-w-0 break-words">
                                                     หน่วยงาน:{' '}
                                                     {announcement.organization}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-1.5">
-                                                <Gavel className="h-4 w-4 text-amber-500" />
+                                                <Gavel className="h-4 w-4 text-primary" />
                                                 <span>
-                                                    {taxonomy.methodLabels[
-                                                        announcement.method
-                                                    ] ?? announcement.method}
+                                                    <ProcurementMethodLabel
+                                                        label={
+                                                            taxonomy
+                                                                .methodLabels[
+                                                                announcement
+                                                                    .method
+                                                            ] ??
+                                                            announcement.method
+                                                        }
+                                                    />
                                                 </span>
                                             </div>
                                         </div>
 
                                         <div className="flex flex-col items-start justify-between gap-4 border-t border-border pt-4 sm:flex-row sm:items-center">
-                                            <div className="flex items-center gap-6">
+                                            <div className="flex w-full flex-wrap items-start gap-x-6 gap-y-4 sm:w-auto">
                                                 <div>
                                                     <p className="text-xs text-muted-foreground">
                                                         งบประมาณ
                                                     </p>
-                                                    <p className="text-base font-bold text-primary">
-                                                        ฿{' '}
-                                                        {formatBudget(
+                                                    <p className="text-base font-bold text-primary tabular-nums">
+                                                        {formatThaiBudget(
                                                             announcement.budget,
                                                         )}
                                                     </p>
@@ -761,7 +750,7 @@ export default function ProcurementSearch() {
                                                     </p>
                                                     <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                                                         <CalendarDays className="h-4 w-4" />
-                                                        {formatDate(
+                                                        {formatThaiDate(
                                                             announcement.deadline,
                                                         )}
                                                     </p>
@@ -775,7 +764,7 @@ export default function ProcurementSearch() {
                                                         ? 'outline'
                                                         : 'secondary'
                                                 }
-                                                className="w-full gap-2 transition-all hover:bg-primary hover:text-white sm:w-auto"
+                                                className="w-full gap-2 transition-all hover:bg-primary hover:text-primary-foreground sm:w-auto"
                                             >
                                                 <Link
                                                     href={`/procurement/announcements/${announcement.id}`}
@@ -881,7 +870,7 @@ export default function ProcurementSearch() {
                             data-test="procurement-save-search-submit"
                         >
                             {isSavingSearch && (
-                                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                <LoaderCircle className="mr-2 h-4 w-4 motion-safe:animate-spin" />
                             )}
                             บันทึกการค้นหา
                         </Button>

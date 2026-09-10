@@ -12,7 +12,7 @@ const statusBadgeVariants = cva(
                 urgent: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
                 closing:
                     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-                closed: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+                closed: 'bg-muted text-muted-foreground',
             },
         },
         defaultVariants: {
@@ -23,17 +23,17 @@ const statusBadgeVariants = cva(
 
 const dotVariants: Record<string, string> = {
     open: 'bg-emerald-500',
-    urgent: 'bg-amber-500 animate-pulse',
-    closing: 'bg-amber-500 animate-pulse',
-    closed: 'bg-slate-400',
+    urgent: 'bg-amber-500 motion-safe:animate-pulse',
+    closing: 'bg-amber-500 motion-safe:animate-pulse',
+    closed: 'bg-muted-foreground',
 };
 
-const defaultLabels: Record<string, string> = {
+const announcementStatusLabels = {
     open: 'เปิดรับข้อเสนอ',
     urgent: 'เร่งด่วน',
     closing: 'ใกล้ปิดรับ',
     closed: 'ปิดรับแล้ว',
-};
+} as const;
 
 export interface StatusBadgeProps
     extends React.HTMLAttributes<HTMLSpanElement>,
@@ -59,9 +59,9 @@ function StatusBadge({
                     className={cn('h-1.5 w-1.5 rounded-full', dotVariants[status])}
                 />
             )}
-            {children || defaultLabels[status]}
+            {children || announcementStatusLabels[status]}
         </span>
     );
 }
 
-export { StatusBadge, statusBadgeVariants };
+export { announcementStatusLabels, StatusBadge, statusBadgeVariants };

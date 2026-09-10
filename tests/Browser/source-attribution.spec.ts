@@ -77,9 +77,7 @@ test('admin publishes approved source and guest sees attribution while the publi
     ).toContainText('.invalid');
     await expect(
         page.locator('[data-test="source-attribution-notice"]'),
-    ).toContainText(
-        'ข้อมูลนี้เป็นข้อมูลสาธิตแบบกำหนดผลลัพธ์แน่นอน ไม่ใช่ผลลัพธ์จาก OCR หรือโมเดล',
-    );
+    ).toContainText('ข้อมูลนี้ใช้โดเมนสาธิตและไม่ใช่แหล่งข้อมูลทางการ');
     await expect(
         page.locator(`iframe[title="${announcement.filename}"]`),
     ).toBeVisible();

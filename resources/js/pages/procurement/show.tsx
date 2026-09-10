@@ -9,12 +9,17 @@ import {
     Phone,
     User,
 } from 'lucide-react';
+import { ProcurementMethodLabel } from '@/components/procurement-method-label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/status-badge';
+import {
+    announcementStatusLabels,
+    StatusBadge,
+} from '@/components/ui/status-badge';
 import { Timeline, type TimelineItem } from '@/components/ui/timeline';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import { formatThaiBudget, formatThaiDate } from '@/lib/procurement-format';
 import type { SharedData } from '@/types';
 
 type Attachment = {
@@ -53,28 +58,6 @@ type PageProps = SharedData & {
     };
 };
 
-function formatDate(value: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return date.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
-}
-
-function formatBudget(value: number | string): string {
-    const amount = typeof value === 'number' ? value : Number.parseFloat(value);
-    if (Number.isNaN(amount)) {
-        return '-';
-    }
-
-    return `${amount.toLocaleString('th-TH')} บาท`;
-}
-
 export default function ProcurementAnnouncement() {
     const { announcement, taxonomy } = usePage<PageProps>().props;
     const primaryAttachment = announcement.attachments[0] ?? null;
@@ -90,12 +73,12 @@ export default function ProcurementAnnouncement() {
 
     const timelineItems: TimelineItem[] = [
         {
-            date: formatDate(announcement.published_at),
+            date: formatThaiDate(announcement.published_at),
             title: 'เผยแพร่ประกาศ',
             status: 'completed',
         },
         {
-            date: formatDate(announcement.deadline),
+            date: formatThaiDate(announcement.deadline),
             title: 'วันสิ้นสุดการรับยื่นข้อเสนอ',
             status: 'current',
         },
@@ -126,15 +109,15 @@ export default function ProcurementAnnouncement() {
                 </nav>
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex max-w-3xl flex-col gap-3">
+                    <div className="flex max-w-3xl min-w-0 flex-col gap-3">
                         <div className="flex items-center gap-3">
                             <StatusBadge status={announcement.status} />
                             <span className="text-sm text-muted-foreground">
                                 วันที่ประกาศ:{' '}
-                                {formatDate(announcement.published_at)}
+                                {formatThaiDate(announcement.published_at)}
                             </span>
                         </div>
-                        <h1 className="text-2xl leading-tight font-black tracking-tight text-foreground md:text-4xl">
+                        <h1 className="text-xl leading-tight font-black tracking-tight text-pretty text-foreground sm:text-2xl md:text-3xl">
                             {announcement.title}
                         </h1>
                         <p className="text-muted-foreground">
@@ -165,8 +148,10 @@ export default function ProcurementAnnouncement() {
                 <Card className="overflow-hidden">
                     <CardHeader className="flex flex-row items-center gap-2 border-b border-border bg-muted/30 py-4">
                         <FileText className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-lg">
-                            รายละเอียดประกาศจัดซื้อจัดจ้าง
+                        <CardTitle>
+                            <h2 className="text-lg">
+                                รายละเอียดประกาศจัดซื้อจัดจ้าง
+                            </h2>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -175,7 +160,7 @@ export default function ProcurementAnnouncement() {
                                 <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                     หน่วยงานที่รับผิดชอบ
                                 </p>
-                                <p className="font-medium text-foreground">
+                                <p className="font-medium break-words text-foreground">
                                     {announcement.organization}
                                 </p>
                             </div>
@@ -183,8 +168,8 @@ export default function ProcurementAnnouncement() {
                                 <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                     งบประมาณโครงการ
                                 </p>
-                                <p className="font-medium text-foreground">
-                                    {formatBudget(announcement.budget)}
+                                <p className="text-sm font-medium text-foreground">
+                                    {formatThaiBudget(announcement.budget)}
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1 p-5">
@@ -200,7 +185,7 @@ export default function ProcurementAnnouncement() {
                                     สิ้นสุดรับยื่นข้อเสนอ
                                 </p>
                                 <p className="font-bold text-destructive">
-                                    {formatDate(announcement.deadline)}
+                                    {formatThaiDate(announcement.deadline)}
                                 </p>
                             </div>
                         </div>
@@ -210,7 +195,9 @@ export default function ProcurementAnnouncement() {
                                     วิธีการจัดซื้อจัดจ้าง
                                 </p>
                                 <p className="font-medium text-foreground">
-                                    {methodLabel}
+                                    <ProcurementMethodLabel
+                                        label={methodLabel}
+                                    />
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1 p-5">
@@ -218,7 +205,7 @@ export default function ProcurementAnnouncement() {
                                     วันที่ประกาศเผยแพร่
                                 </p>
                                 <p className="font-medium text-foreground">
-                                    {formatDate(announcement.published_at)}
+                                    {formatThaiDate(announcement.published_at)}
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1 p-5">
@@ -226,7 +213,13 @@ export default function ProcurementAnnouncement() {
                                     การเผยแพร่
                                 </p>
                                 <p className="font-medium text-foreground">
-                                    {announcement.publication_status}
+                                    {
+                                        {
+                                            draft: 'ฉบับร่าง',
+                                            published: 'เผยแพร่แล้ว',
+                                            hidden: 'ซ่อนจากสาธารณะ',
+                                        }[announcement.publication_status]
+                                    }
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1 p-5">
@@ -234,15 +227,17 @@ export default function ProcurementAnnouncement() {
                                     สถานะประกาศ
                                 </p>
                                 <p className="font-medium text-foreground">
-                                    {announcement.status}
+                                    {announcementStatusLabels[
+                                        announcement.status
+                                    ] ?? announcement.status}
                                 </p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-                    <div className="flex flex-col gap-4">
+                <div className="grid min-w-0 gap-6 lg:grid-cols-[2fr_1fr]">
+                    <div className="flex min-w-0 flex-col gap-4">
                         <div className="flex items-center justify-between">
                             <h2 className="flex items-center gap-3 text-2xl font-bold text-foreground">
                                 <FileText className="h-7 w-7 text-primary" />
@@ -250,9 +245,9 @@ export default function ProcurementAnnouncement() {
                             </h2>
                         </div>
 
-                        <div className="group relative flex h-[600px] flex-col overflow-hidden rounded-xl border border-border bg-[#525659] shadow-lg">
-                            <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#404447] bg-[#323639] px-4">
-                                <div className="flex items-center gap-4 text-gray-300">
+                        <div className="group relative flex h-[600px] flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-lg">
+                            <div className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-primary px-4">
+                                <div className="flex min-w-0 items-center gap-4 text-primary-foreground/80">
                                     <Menu className="h-5 w-5" />
                                     <span className="max-w-[260px] truncate text-sm font-medium">
                                         {primaryAttachment?.filename ??
@@ -262,19 +257,48 @@ export default function ProcurementAnnouncement() {
                                 <Badge variant="secondary">PDF</Badge>
                             </div>
 
-                            <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#525659] p-4">
+                            <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted p-4">
                                 {primaryAttachment ? (
-                                    <iframe
-                                        src={primaryAttachment.preview_url}
-                                        title={primaryAttachment.filename}
-                                        className="h-full w-full rounded-md bg-white"
-                                        style={{
-                                            maxWidth: '100%',
-                                            maxHeight: '100%',
-                                        }}
-                                    />
+                                    <>
+                                        <iframe
+                                            src={primaryAttachment.preview_url}
+                                            title={primaryAttachment.filename}
+                                            className="h-full w-full rounded-md bg-background"
+                                            style={{
+                                                maxWidth: '100%',
+                                                maxHeight: '100%',
+                                            }}
+                                        />
+                                        <div className="absolute inset-x-8 bottom-8 flex flex-col items-center gap-3 rounded-lg border border-border bg-card/95 p-4 text-center shadow-lg backdrop-blur sm:right-auto sm:left-1/2 sm:w-max sm:max-w-[calc(100%-4rem)] sm:-translate-x-1/2 sm:flex-row sm:text-left">
+                                            <FileText className="h-6 w-6 shrink-0 text-primary" />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-foreground">
+                                                    หากตัวอย่างไม่แสดงในเบราว์เซอร์
+                                                </p>
+                                                <p className="truncate text-xs text-muted-foreground">
+                                                    {primaryAttachment.filename}
+                                                </p>
+                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="shrink-0"
+                                                asChild
+                                            >
+                                                <a
+                                                    href={
+                                                        primaryAttachment.preview_url
+                                                    }
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    เปิดเอกสาร PDF ในแท็บใหม่
+                                                </a>
+                                            </Button>
+                                        </div>
+                                    </>
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center rounded-md bg-white p-12 text-center text-muted-foreground">
+                                    <div className="flex h-full w-full items-center justify-center rounded-md bg-background p-12 text-center text-muted-foreground">
                                         ไม่มีไฟล์แนบสำหรับประกาศนี้
                                     </div>
                                 )}
@@ -282,11 +306,13 @@ export default function ProcurementAnnouncement() {
                         </div>
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="min-w-0 space-y-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-lg">
-                                    ข้อมูลติดต่อ & เอกสารที่ต้องใช้
+                                <CardTitle>
+                                    <h2 className="text-lg">
+                                        ข้อมูลติดต่อ & เอกสารที่ต้องใช้
+                                    </h2>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
@@ -295,11 +321,11 @@ export default function ProcurementAnnouncement() {
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
                                             <MapPin className="h-4 w-4" />
                                         </div>
-                                        <div>
+                                        <div className="min-w-0">
                                             <p className="text-xs font-semibold text-muted-foreground uppercase">
                                                 สถานที่ปฏิบัติงาน
                                             </p>
-                                            <p className="text-sm font-medium text-foreground">
+                                            <p className="text-sm font-medium break-words text-foreground">
                                                 {announcement.location ?? '-'}
                                             </p>
                                         </div>
@@ -308,11 +334,11 @@ export default function ProcurementAnnouncement() {
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
                                             <User className="h-4 w-4" />
                                         </div>
-                                        <div>
+                                        <div className="min-w-0">
                                             <p className="text-xs font-semibold text-muted-foreground uppercase">
                                                 ผู้ติดต่อ
                                             </p>
-                                            <p className="text-sm font-medium text-foreground">
+                                            <p className="text-sm font-medium break-words text-foreground">
                                                 {announcement.contact_name ??
                                                     '-'}
                                             </p>
@@ -322,14 +348,22 @@ export default function ProcurementAnnouncement() {
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
                                             <Phone className="h-4 w-4" />
                                         </div>
-                                        <div>
+                                        <div className="min-w-0">
                                             <p className="text-xs font-semibold text-muted-foreground uppercase">
                                                 เบอร์โทรศัพท์
                                             </p>
-                                            <p className="text-sm font-medium text-foreground">
-                                                {announcement.contact_phone ??
-                                                    '-'}
-                                            </p>
+                                            {announcement.contact_phone ? (
+                                                <a
+                                                    href={`tel:${announcement.contact_phone}`}
+                                                    className="text-sm font-medium break-all text-primary hover:underline"
+                                                >
+                                                    {announcement.contact_phone}
+                                                </a>
+                                            ) : (
+                                                <p className="text-sm font-medium text-foreground">
+                                                    -
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -370,8 +404,10 @@ export default function ProcurementAnnouncement() {
                         {announcement.source_url ? (
                             <Card data-test="source-attribution">
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        แหล่งที่มาของประกาศ
+                                    <CardTitle className="flex items-center gap-2">
+                                        <h2 className="text-lg">
+                                            แหล่งที่มาของประกาศ
+                                        </h2>
                                         {sourceHostname?.endsWith(
                                             '.invalid',
                                         ) ? (
@@ -389,7 +425,7 @@ export default function ProcurementAnnouncement() {
                                         href={announcement.source_url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex max-w-full items-center gap-2 text-sm font-medium break-all text-primary hover:underline"
+                                        className="inline-flex max-w-full items-center gap-2 text-sm font-medium break-words text-primary hover:underline"
                                         data-test="source-attribution-link"
                                     >
                                         {announcement.source_url}
@@ -408,9 +444,9 @@ export default function ProcurementAnnouncement() {
                                         className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
                                         data-test="source-attribution-notice"
                                     >
-                                        ข้อมูลนี้เป็นข้อมูลสาธิตแบบกำหนดผลลัพธ์แน่นอน
-                                        ไม่ใช่ผลลัพธ์จาก OCR หรือโมเดล
-                                        และไม่ใช่แหล่งข้อมูลทางการ
+                                        {sourceHostname?.endsWith('.invalid')
+                                            ? 'ข้อมูลนี้ใช้โดเมนสาธิตและไม่ใช่แหล่งข้อมูลทางการ'
+                                            : 'ข้อมูลแหล่งที่มาและเลขที่อ้างอิงนำเข้าพร้อมประกาศ โปรดตรวจสอบรายละเอียดกับเว็บไซต์ต้นทาง'}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -418,8 +454,8 @@ export default function ProcurementAnnouncement() {
 
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-lg">
-                                    กำหนดการ
+                                <CardTitle>
+                                    <h2 className="text-lg">กำหนดการ</h2>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -429,8 +465,10 @@ export default function ProcurementAnnouncement() {
 
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-lg">
-                                    รายละเอียดเพิ่มเติม
+                                <CardTitle>
+                                    <h2 className="text-lg">
+                                        รายละเอียดเพิ่มเติม
+                                    </h2>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
