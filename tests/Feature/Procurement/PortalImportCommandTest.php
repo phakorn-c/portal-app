@@ -3,9 +3,16 @@
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
 use App\Models\DocumentExtraction;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 
+use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
+use function Pest\Laravel\get;
+use function Pest\Laravel\patch;
+use function Pest\Laravel\put;
 
 test('valid portal rows import as drafts even when the export marks them published', function () {
     Storage::fake('local');
@@ -255,6 +262,76 @@ test('a representative portal fixture round trips to the exact draft record grap
             'attachment' => AnnouncementAttachment::query()->sole()->getAttributes(),
             'extraction' => DocumentExtraction::query()->sole()->getAttributes(),
         ])->toBe($firstGraph);
+});
+
+test('an imported Thai record reaches guest search detail attribution and its original PDF after admin review and publish', function () {
+    Storage::fake('local');
+
+    $importPath = base_path('tests/Fixtures/Procurement/portal-import-round-trip/portal_import.json');
+    $sourcePdf = base_path('tests/Fixtures/Procurement/portal-import-round-trip/portal_attachments/drainage-project.pdf');
+    $pdfBytes = file_get_contents($sourcePdf);
+
+    expect($pdfBytes)->toBeString();
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $announcement = Announcement::query()->sole();
+    $attachment = AnnouncementAttachment::query()->sole();
+    $extraction = DocumentExtraction::query()->sole();
+
+    expect($announcement->publication_status)->toBe('draft')
+        ->and($extraction->status)->toBe('review');
+    get(route('procurement.search', ['query' => 'ระบบระบายน้ำ']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('announcements.data', 0));
+    get(route('procurement.show', $announcement))->assertNotFound();
+    get(route('procurement.pdf', [$announcement, $attachment]))->assertNotFound();
+
+    $admin = User::factory()->create([
+        'role' => 'admin',
+        'email_verified_at' => now(),
+    ]);
+    actingAs($admin);
+
+    put(route('admin.announcements.extractions.approve', [$announcement, $extraction]), $extraction->candidate)
+        ->assertRedirect(route('admin.announcements.extractions.show', [$announcement, $extraction]));
+    patch(route('admin.announcements.publish', $announcement))
+        ->assertRedirect(route('admin.announcements.index'));
+
+    expect($extraction->refresh()->status)->toBe('approved')
+        ->and($extraction->raw_text)->toBe("มหาวิทยาลัยขอนแก่น\nประกวดราคาจ้างปรับปรุงระบบระบายน้ำ\nวงเงินงบประมาณ 9,876,543.21 บาท\nกำหนดยื่นข้อเสนอวันที่ 18 กันยายน 2569")
+        ->and($announcement->refresh()->publication_status)->toBe('published')
+        ->and($announcement->published_at)->not->toBeNull();
+
+    Auth::logout();
+
+    get(route('procurement.search', ['query' => 'ระบบระบายน้ำ']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('announcements.data', 1)
+            ->where('announcements.data.0.id', $announcement->id)
+            ->where('announcements.data.0.title', 'ประกวดราคาจ้างปรับปรุงระบบระบายน้ำภายในมหาวิทยาลัย')
+        );
+
+    get(route('procurement.show', $announcement))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('procurement/show')
+            ->where('announcement.title', 'ประกวดราคาจ้างปรับปรุงระบบระบายน้ำภายในมหาวิทยาลัย')
+            ->where('announcement.source_url', 'https://example.test/procurement/drainage-2569')
+            ->where('announcement.source_reference', 'kku:drainage-2569-001')
+            ->where('announcement.attachments.0.filename', 'drainage-project.pdf')
+        );
+
+    $pdfResponse = get(route('procurement.pdf', [$announcement, $attachment]));
+
+    $pdfResponse->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('content-disposition', 'inline; filename=drainage-project.pdf');
+    expect($pdfResponse->streamedContent())->toBe($pdfBytes)
+        ->and(hash('sha256', $pdfResponse->streamedContent()))->toBe(hash_file('sha256', $sourcePdf));
 });
 
 test('a missing PDF reports an explicit row error without creating partial records', function () {
