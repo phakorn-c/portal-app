@@ -16,7 +16,8 @@ class DashboardController extends Controller
             'attachments' => fn ($query) => $query->orderBy('id'),
             'attachments.extraction' => fn ($query) => $query->select(['id', 'announcement_attachment_id', 'status']),
         ])
-            ->latest()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(15);
 
         $stats = [
