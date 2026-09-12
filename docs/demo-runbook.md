@@ -2,6 +2,129 @@
 
 This document provides the exact steps and commands for the three-actor demo of the Khon Kaen Procurement Docs Portal.
 
+## Day 5 Real-Data Rehearsal (Canonical)
+
+This is the canonical cross-repository demo path. It uses the existing 90-record OCR corpus, not a live scrape, so source-site availability cannot interrupt the presentation. The upload path described later still uses `FakeDocumentExtractor`; imported records instead arrive with `document_extractions.method = portal-ocr` and do not run that fake.
+
+### Prerequisites and directories
+
+- Docker Desktop, Laravel Sail dependencies, Python 3.10+, and `uv` are installed.
+- `portal-app/` and `portal-ocr/` are sibling directories.
+- `portal-ocr/.env` exists and `uv sync --locked --extra dev` has completed.
+- The existing corpus contains `portal-ocr/outputs/output.json` and 90 matching PDFs under `portal-ocr/data/pdfs/`.
+- Run each block from the directory named immediately above it. Do not run a destructive database command unless the guard below proves the active database is exactly `testing`.
+
+### 1. Regenerate the portal export without changing raw OCR
+
+From `portal-ocr/`:
+
+```bash
+shasum data/ocr_texts/*.txt | shasum
+uv run --locked python portal_export.py
+jq '{rows:length,drafts:([.[]|select(.publication_status=="draft" and .published_at==null)]|length),with_pdf:([.[]|select(.pdf_path!="")]|length),with_raw_text:([.[]|select(has("raw_text"))]|length),with_flags:([.[]|select(has("validation_flags"))]|length)}' outputs/portal_import.json
+printf 'attachments=' && ls outputs/portal_attachments | wc -l
+shasum data/ocr_texts/*.txt | shasum
+```
+
+Measured on 2026-09-11:
+
+```text
+exported 90 portal rows
+rows=90, drafts=90, with_pdf=90, with_raw_text=0, with_flags=0
+attachments=90
+raw OCR aggregate SHA-1 before and after: 47c8a4eaf97c7de5d37f9701a42896bb6b5b1df9
+```
+
+The two raw-OCR hashes must match. `portal_export.py` replaces only generated `outputs/portal_import.json`, `outputs/portal_import.sql`, and `outputs/portal_attachments/`; it does not write `data/ocr_texts/`. The current export does not include separate `raw_text` or `validation_flags` keys, so imported review rows have null raw text and empty warnings. Do not describe the cleaned summary in `description` as full raw OCR.
+
+### 2. Stage the sibling export inside Sail
+
+From `portal-app/`:
+
+```bash
+./vendor/bin/sail up -d
+docker compose exec laravel.test mkdir -p /tmp/portal-demo
+docker compose cp ../portal-ocr/outputs/portal_import.json laravel.test:/tmp/portal-demo/portal_import.json
+docker compose cp ../portal-ocr/outputs/portal_attachments laravel.test:/tmp/portal-demo/portal_attachments
+```
+
+The JSON and `portal_attachments/` directory must remain siblings. The importer rejects absolute paths, traversal, missing/unreadable files, non-PDF signatures, and duplicate PDF content.
+
+### 3. Guard and reset only PostgreSQL `testing`
+
+```bash
+./vendor/bin/sail exec pgsql sh -lc 'psql -U "$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\''testing'\''" | grep -qx 1 || createdb -U "$POSTGRES_USER" testing'
+
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan tinker --execute='$db = \Illuminate\Support\Facades\DB::selectOne("select current_database() AS name")->name; throw_unless($db === "testing", "Refusing DB: ".$db);'
+
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan migrate:fresh --seed --force
+```
+
+The seed baseline is 8 announcements, 4 attachments, and 3 extractions.
+
+### 4. Import and measure the current corpus
+
+```bash
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan portal:import /tmp/portal-demo/portal_import.json
+```
+
+Current expected terminal output is:
+
+```text
+Import complete: imported=70 skipped=0 errors=20
+```
+
+The command intentionally exits nonzero when any row is rejected. The 20 errors are all `The selected organization is invalid.` at export rows 8, 15, 22, 28, 37, 38, 43, 44, 46, 47, 50, 57, 61, 65, 71, 73, 77, 78, 85, and 86. The affected contract is `portal-ocr/portal_ocr/adapters/portal_serialization.py` `organization` output versus `portal-app/app/Support/Procurement/Taxonomy.php`. Several values contain OCR-contaminated department text; do not coerce or invent organization/contact facts during the demo.
+
+Confirm the accepted rows are still private drafts and capture one runtime ID tuple:
+
+```bash
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan tinker --execute='$a=\App\Models\Announcement::where("source_reference","kku_plan:201b887d_kku_plan")->firstOrFail(); $attachment=$a->attachments()->firstOrFail(); $e=$attachment->extraction()->firstOrFail(); throw_unless($a->publication_status === "draft" && $a->published_at === null && $e->status === "review" && $e->method === "portal-ocr", "Unsafe import state"); dump(["announcement_id"=>$a->id,"attachment_id"=>$attachment->id,"extraction_id"=>$e->id,"title"=>$a->title]);'
+```
+
+This row is suitable for the safety-sensitive walkthrough because source output row 90 contains both an explicitly extracted `budget = 1180000.00` and `end_date = 23/12/2568`; it does not depend on the exporter’s missing-value fallbacks. On the 2026-09-11 clean reset it returned announcement `78`, attachment `74`, and extraction `73`. IDs are runtime values; use the command output instead of assuming those numbers after a different seed/import.
+
+### 5. Review, approve, and publish in the admin UI
+
+Expose the guarded `testing` database on a separate demo port while leaving the normal Sail app untouched:
+
+```bash
+DEMO_WEB_CONTAINER=$(APP_PORT=8001 VITE_PORT=5174 docker compose run -d --rm --service-ports -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan serve --host=0.0.0.0 --port=80 --no-reload)
+curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:8001/procurement
+```
+
+Expect HTTP `200`, then:
+
+1. Open `http://localhost:8001/login` and sign in as `admin@example.com` / `password`.
+2. Open `/admin/announcements/{announcement_id}/extractions/{extraction_id}` using the IDs printed above.
+3. Inspect the real candidate and original filename, make only source-supported corrections, and click `อนุมัติข้อมูลที่แก้ไข`.
+4. Confirm the page shows `อนุมัติแล้ว`. Approval changes extraction `review -> approved` but the announcement remains `draft` with `published_at = null`.
+5. Return to `/admin`. Imported rows with matching timestamps are ordered by descending ID, so this selected record is on the first page; use the title filter and click its publish control. This explicit action changes `draft -> published` and sets `published_at`.
+
+### 6. Verify the guest search, detail, and original PDF
+
+Log out, then:
+
+1. Search `/procurement?query=เครื่องทดสอบความชัดเจน` and confirm the imported title appears.
+2. Open `/procurement/announcements/{announcement_id}` and confirm the Thai budget (`฿ 1,180,000.00`), source date (`23 ธันวาคม 2568`), organization, and `201b887d_kku_plan.pdf` attachment. This corpus row has a blank `source_url`, so the public page correctly omits linked source attribution; do not invent one.
+3. Open `/procurement/announcements/{announcement_id}/pdf/{attachment_id}` and use the download link ending in `/download`.
+4. Confirm the inline response is HTTP `200`, `Content-Type: application/pdf`, and its bytes match the exported original:
+
+```bash
+curl -sS -o /tmp/portal-demo-pdf-check.pdf http://localhost:8001/procurement/announcements/{announcement_id}/pdf/{attachment_id}
+shasum /tmp/portal-demo-pdf-check.pdf ../portal-ocr/outputs/portal_attachments/201b887d_kku_plan.pdf
+```
+
+The two hashes must match. The 2026-09-11 rehearsal produced `f680689ba8da7dd93fb29a25ede35110b175fc4e` for both and no guest-page browser console errors. Stop the temporary server afterward with `docker stop "$DEMO_WEB_CONTAINER"`.
+
+### Recovery and known blocker
+
+- **Partial import:** after the measured 70/20 result, rerunning without reset yields `imported=0 skipped=70 errors=20`; accepted rows are idempotently skipped. Use the guarded reset before another clean attempt.
+- **Full 90-row acceptance blocker:** fix and test the exporter’s organization mapping against Laravel taxonomy upstream. After that dependency lands, repeat from step 1 and update the expected count; do not silently edit generated JSON.
+- **Draft safety:** approval never publishes. If a record is visible to guests before the explicit publish action, stop the demo and run the guarded reset.
+- **Raw OCR:** compare the aggregate hashes again after recovery. Never edit or replace `portal-ocr/data/ocr_texts/` to make an import pass.
+- **Temporary server:** if port 8001 is occupied, stop the prior `$DEMO_WEB_CONTAINER`; do not point the normal port-80 app at `testing` implicitly.
+
 ## 1. Environment Reset
 
 Start Sail, provision only the PostgreSQL database named `testing`, prove the active database name, and only then reset it. The five environment variables on every PostgreSQL application command are mandatory; never aim this rehearsal at the development database.
