@@ -220,6 +220,17 @@ test('registered user sees member navigation and can open saved searches and his
     await expectListOrEmptyState(page, '[data-test="history-row"]', [
         'ยังไม่มีประวัติการค้นหา',
     ]);
+    const matchingSearch = page
+        .getByRole('tabpanel', { name: 'ประวัติการค้นหา' })
+        .locator('[data-test="history-row"]')
+        .filter({ hasText: seededAnnouncementTitle })
+        .first();
+    await expect(matchingSearch).toBeVisible();
+    await matchingSearch.click();
+    await expect(page).toHaveURL(/\/procurement\?/);
+    expect(new URL(page.url()).searchParams.get('query')).toBe(
+        seededAnnouncementTitle,
+    );
 });
 
 test('registered user can view saved searches and toggle notification settings', async ({
