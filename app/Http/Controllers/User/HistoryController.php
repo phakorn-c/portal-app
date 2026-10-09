@@ -16,6 +16,7 @@ class HistoryController extends Controller
         $user = $request->user();
 
         $listingHistory = ListingHistory::where('user_id', $user->id)
+            ->whereHas('announcement', fn ($query) => $query->visible())
             ->with('announcement')
             ->latest('viewed_at')
             ->paginate(15, ['*'], 'listing_page');

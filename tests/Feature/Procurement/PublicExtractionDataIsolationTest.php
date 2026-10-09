@@ -176,7 +176,11 @@ test('public search explicitly whitelists announcement fields and excludes sourc
     publishSourceAnnouncement($announcement);
 
     $response = get(route('procurement.search', ['query' => $announcement->title]));
-    $publicFields = ['id', 'title', 'organization', 'category', 'method', 'budget', 'deadline', 'status'];
+    $publicFields = [
+        'id', 'title', 'organization', 'category', 'method', 'budget', 'deadline',
+        'status', 'notice_type', 'procurement_category', 'display_price',
+        'display_price_source', 'province',
+    ];
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page

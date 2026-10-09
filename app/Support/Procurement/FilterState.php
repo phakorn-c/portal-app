@@ -14,6 +14,9 @@ class FilterState
             'organizations' => [],
             'methods' => [],
             'categories' => [],
+            'noticeTypes' => [],
+            'provinces' => [],
+            'tags' => [],
             'sortBy' => 'latest',
         ];
     }
@@ -32,6 +35,12 @@ class FilterState
             $prefix.'.methods.*' => [Rule::in(array_keys(Taxonomy::methods()))],
             $prefix.'.categories' => ['present', 'array'],
             $prefix.'.categories.*' => [Rule::in(array_keys(Taxonomy::categories()))],
+            $prefix.'.noticeTypes' => ['sometimes', 'array'],
+            $prefix.'.noticeTypes.*' => [Rule::in(['invitation', 'award'])],
+            $prefix.'.provinces' => ['sometimes', 'array'],
+            $prefix.'.provinces.*' => ['string', 'max:255'],
+            $prefix.'.tags' => ['sometimes', 'array'],
+            $prefix.'.tags.*' => ['string', 'max:255'],
             $prefix.'.sortBy' => ['required', 'in:latest,budget-high,budget-low,deadline'],
         ];
     }
@@ -49,6 +58,9 @@ class FilterState
             'organizations' => array_values($criteria['organizations'] ?? $defaults['organizations']),
             'methods' => array_values($criteria['methods'] ?? $defaults['methods']),
             'categories' => array_values($criteria['categories'] ?? $defaults['categories']),
+            'noticeTypes' => array_values($criteria['noticeTypes'] ?? $defaults['noticeTypes']),
+            'provinces' => array_values($criteria['provinces'] ?? $defaults['provinces']),
+            'tags' => array_values($criteria['tags'] ?? $defaults['tags']),
             'sortBy' => (string) ($criteria['sortBy'] ?? $defaults['sortBy']),
         ];
     }

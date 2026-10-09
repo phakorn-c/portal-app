@@ -96,6 +96,18 @@ function serializeCriteria(criteria: Record<string, unknown>): string {
                 : undefined,
         );
     }
+    for (const [field, parameter] of [
+        ['noticeTypes', 'notice_type[]'],
+        ['provinces', 'province[]'],
+        ['tags', 'tag[]'],
+    ] as const) {
+        const values = criteria[field];
+        if (Array.isArray(values)) {
+            values.forEach((value) => {
+                if (typeof value === 'string') params.append(parameter, value);
+            });
+        }
+    }
     if (
         Array.isArray(criteria.budgetRange) &&
         typeof criteria.budgetRange[0] === 'number' &&

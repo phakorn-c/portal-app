@@ -17,7 +17,9 @@ class AnnouncementSearch
             $query->where(function (Builder $builder) use ($lowerKeyword): void {
                 $builder
                     ->whereRaw('LOWER(title) LIKE ?', ["%{$lowerKeyword}%"])
-                    ->orWhereRaw('LOWER(description) LIKE ?', ["%{$lowerKeyword}%"]);
+                    ->orWhereRaw('LOWER(description) LIKE ?', ["%{$lowerKeyword}%"])
+                    ->orWhereRaw('LOWER(project_no) LIKE ?', ["%{$lowerKeyword}%"])
+                    ->orWhereRaw('LOWER(winner_name) LIKE ?', ["%{$lowerKeyword}%"]);
             });
         }
 
@@ -34,6 +36,20 @@ class AnnouncementSearch
         $categories = array_values($criteria['categories'] ?? []);
         if ($categories !== []) {
             $query->whereIn('category', $categories);
+        }
+
+        $noticeTypes = array_values($criteria['noticeTypes'] ?? []);
+        if ($noticeTypes !== []) {
+            $query->whereIn('notice_type', $noticeTypes);
+        }
+
+        $provinces = array_values($criteria['provinces'] ?? []);
+        if ($provinces !== []) {
+            $query->whereIn('province', $provinces);
+        }
+
+        foreach (array_values($criteria['tags'] ?? []) as $tag) {
+            $query->whereJsonContains('tags', $tag);
         }
 
         $budgetRange = $criteria['budgetRange'] ?? [0, null];
@@ -55,9 +71,9 @@ class AnnouncementSearch
     private function applySort(Builder $query, string $sortBy): void
     {
         match ($sortBy) {
-            'deadline_asc', 'deadline' => $query->orderBy('deadline'),
-            'budget_asc', 'budget-low' => $query->orderBy('budget'),
-            'budget_desc', 'budget-high' => $query->orderByDesc('budget'),
+            'deadline_asc', 'deadline' => $query->orderByRaw('deadline IS NULL')->orderBy('deadline'),
+            'budget_asc', 'budget-low' => $query->orderByRaw('budget IS NULL')->orderBy('budget'),
+            'budget_desc', 'budget-high' => $query->orderByRaw('budget IS NULL')->orderByDesc('budget'),
             default => $query->orderByDesc('created_at'),
         };
     }

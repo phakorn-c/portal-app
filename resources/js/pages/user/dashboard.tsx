@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Timeline, type TimelineItem } from '@/components/ui/timeline';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
+import { formatThaiBudget } from '@/lib/procurement-format';
 import type { SharedData } from '@/types';
 
 const sidebarNav = [
@@ -57,12 +58,6 @@ const sidebarNav = [
     },
 ];
 
-function formatBudget(amount: number | string) {
-    const budget =
-        typeof amount === 'number' ? amount : Number.parseFloat(amount) || 0;
-
-    return budget.toLocaleString('th-TH');
-}
 function serializeCriteria(criteria: Record<string, unknown>): string {
     const params = new URLSearchParams();
     if (typeof criteria.query === 'string') params.set('query', criteria.query);
@@ -88,6 +83,18 @@ function serializeCriteria(criteria: Record<string, unknown>): string {
                 ? params.append('category[]', val)
                 : undefined,
         );
+    }
+    for (const [field, parameter] of [
+        ['noticeTypes', 'notice_type[]'],
+        ['provinces', 'province[]'],
+        ['tags', 'tag[]'],
+    ] as const) {
+        const values = criteria[field];
+        if (Array.isArray(values)) {
+            values.forEach((value) => {
+                if (typeof value === 'string') params.append(parameter, value);
+            });
+        }
     }
     if (
         Array.isArray(criteria.budgetRange) &&
@@ -139,8 +146,8 @@ type SerializedAnnouncement = {
     id: number;
     title: string;
     organization: string;
-    budget: number | string;
-    status: 'open' | 'urgent' | 'closing' | 'closed';
+    budget: number | string | null;
+    status: 'open' | 'urgent' | 'closing' | 'closed' | null;
 };
 
 type SerializedListingHistory = {
@@ -417,8 +424,8 @@ export default function UserDashboard({
                                                         {item.title}
                                                     </p>
                                                     <p className="mt-0.5 text-sm text-muted-foreground">
-                                                        {item.organization} · ฿
-                                                        {formatBudget(
+                                                        {item.organization} ·{' '}
+                                                        {formatThaiBudget(
                                                             item.budget,
                                                         )}
                                                     </p>

@@ -116,6 +116,49 @@ test('matching saved search creates notification', function () {
     expect($savedSearch->fresh()->last_notified_at)->not()->toBeNull();
 });
 
+test('saved OCR facets notify only the matching notice province and tag', function () {
+    Notification::fake();
+
+    $matchingUser = User::factory()->create();
+    $otherUser = User::factory()->create();
+    foreach ([$matchingUser, $otherUser] as $user) {
+        NotificationPreference::factory()->for($user)->create([
+            'website_enabled' => true,
+            'email_enabled' => false,
+        ]);
+    }
+
+    $announcement = Announcement::factory()->published()->create([
+        'notice_type' => 'award',
+        'province' => 'ขอนแก่น',
+        'tags' => ['ก่อสร้าง'],
+        'budget' => null,
+        'published_at' => now(),
+    ]);
+
+    $criteria = [
+        ...FilterState::defaults(),
+        'noticeTypes' => ['award'],
+        'provinces' => ['ขอนแก่น'],
+        'tags' => ['ก่อสร้าง'],
+    ];
+    SavedSearch::factory()->for($matchingUser)->create([
+        'criteria' => $criteria,
+        'alert_enabled' => true,
+        'last_notified_at' => null,
+    ]);
+    SavedSearch::factory()->for($otherUser)->create([
+        'criteria' => [...$criteria, 'tags' => ['ยา']],
+        'alert_enabled' => true,
+        'last_notified_at' => null,
+    ]);
+
+    EvaluateSavedSearchAlerts::dispatchSync($announcement);
+
+    Notification::assertSentTo($matchingUser, NewMatchingAnnouncement::class);
+    Notification::assertNotSentTo($otherUser, NewMatchingAnnouncement::class);
+});
+
 test('does not create notification when alert_enabled is false', function () {
     Notification::fake();
 

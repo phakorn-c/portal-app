@@ -10,9 +10,9 @@ use Throwable;
 
 final class ImportPortalAnnouncements extends Command
 {
-    protected $signature = 'portal:import {path : Explicit path to portal_import.json}';
+    protected $signature = 'portal:import {path : Path to output.json or portal_import.json} {--pdf-dir= : Directory containing raw OCR PDFs}';
 
-    protected $description = 'Validate portal-ocr JSON and import announcements as drafts';
+    protected $description = 'Validate OCR records and import announcements as reviewable drafts';
 
     public function handle(): int
     {
@@ -27,6 +27,8 @@ final class ImportPortalAnnouncements extends Command
         if ($contents === false) {
             return $this->failImport("could not read file: {$path}");
         }
+
+        $contents = preg_replace('/^\xEF\xBB\xBF/', '', $contents);
 
         try {
             $rows = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
@@ -65,7 +67,7 @@ final class ImportPortalAnnouncements extends Command
             }
 
             try {
-                $created = $rowPersistence->import($row, $path);
+                $created = $rowPersistence->import($row, $path, $this->option('pdf-dir'));
             } catch (Throwable $exception) {
                 $this->error("Row {$rowNumber}: Database import failed: {$exception->getMessage()}");
                 $errors++;

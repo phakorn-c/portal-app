@@ -5,6 +5,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { TabsContent } from '@/components/ui/tabs';
 import { serializeCriteria } from '@/components/user-history/serialize-criteria';
+import { formatThaiBudget } from '@/lib/procurement-format';
 
 export type PaginatedData<T> = {
     data: T[];
@@ -21,8 +22,8 @@ export type HistoryListingItem = {
         id: number;
         title: string;
         organization: string;
-        budget: number | string;
-        status: 'open' | 'urgent' | 'closing' | 'closed';
+        budget: number | string | null;
+        status: 'open' | 'urgent' | 'closing' | 'closed' | null;
     };
 };
 
@@ -32,13 +33,6 @@ export type HistorySearchItem = {
     result_count: number;
     searched_at: string;
 };
-
-function formatBudget(amount: number | string) {
-    const budget =
-        typeof amount === 'number' ? amount : Number.parseFloat(amount) || 0;
-
-    return budget.toLocaleString('th-TH');
-}
 
 export function ListingHistoryPanel({
     listingHistory,
@@ -81,8 +75,10 @@ export function ListingHistoryPanel({
                                         {item.announcement.title}
                                     </p>
                                     <p className="mt-0.5 text-sm text-muted-foreground">
-                                        {item.announcement.organization} · ฿
-                                        {formatBudget(item.announcement.budget)}
+                                        {item.announcement.organization} ·{' '}
+                                        {formatThaiBudget(
+                                            item.announcement.budget,
+                                        )}
                                     </p>
                                 </div>
                                 <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />

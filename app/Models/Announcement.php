@@ -28,14 +28,44 @@ class Announcement extends Model
         'published_at',
         'source_url',
         'source_reference',
+        'source_document_key',
+        'project_key',
+        'project_no',
+        'notice_type',
+        'procurement_category',
+        'tags',
+        'display_price',
+        'display_price_source',
+        'province',
+        'district',
+        'subdistrict',
+        'location_source',
+        'contact_website',
+        'announcer_name',
+        'announcer_position',
+        'winner_name',
+        'winning_price',
+        'bidders',
+        'announced_at',
+        'submission_deadline',
+        'award_announced_at',
+        'process_status',
+        'source_id',
     ];
 
     protected function casts(): array
     {
         return [
             'budget' => 'decimal:2',
+            'display_price' => 'decimal:2',
+            'winning_price' => 'decimal:2',
+            'tags' => 'array',
+            'bidders' => 'array',
             'published_at' => 'datetime',
             'deadline' => 'date',
+            'announced_at' => 'date',
+            'submission_deadline' => 'date',
+            'award_announced_at' => 'date',
         ];
     }
 
@@ -46,11 +76,15 @@ class Announcement extends Model
 
     public function scopePublished(Builder $query): Builder
     {
-        return $query->where('publication_status', 'published');
+        return $this->scopeVisible($query);
     }
 
     public function scopeVisible(Builder $query): Builder
     {
-        return $query->where('publication_status', 'published');
+        return $query->where('publication_status', 'published')
+            ->where(function (Builder $builder): void {
+                $builder->whereNull('source_document_key')
+                    ->orWhereHas('attachments.extraction', fn (Builder $extraction): Builder => $extraction->where('status', 'approved'));
+            });
     }
 }

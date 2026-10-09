@@ -451,6 +451,216 @@ test('an invalid JSON document fails before importing anything', function () {
     expect(Announcement::query()->count())->toBe(0);
 });
 
+test('agreed raw OCR records preserve nullable facts and distinct documents sharing a record key and PDF bytes', function () {
+    Storage::fake('local');
+
+    $importPath = portalRawFile([
+        portalRawRow(),
+        portalRawRow([
+            'pdf_path' => 'notice-002.pdf',
+            'budget' => 1500000,
+            'display_price' => 1500000,
+        ]),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=2 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $announcements = Announcement::query()->orderBy('id')->get();
+    $first = $announcements[0];
+    $second = $announcements[1];
+
+    expect($announcements)->toHaveCount(2)
+        ->and($first->source_reference)->toBe($second->source_reference)
+        ->and($first->source_url)->toBe($second->source_url)
+        ->and($first->source_document_key)->not->toBe($second->source_document_key)
+        ->and($first->budget)->toBeNull()
+        ->and($first->deadline)->toBeNull()
+        ->and($first->status)->toBeNull()
+        ->and($first->reference_price)->toBeNull()
+        ->and($first->display_price)->toBeNull()
+        ->and($first->organization)->toBe('มหาวิทยาลัยขอนแก่น')
+        ->and($first->category)->toBe('construction')
+        ->and($first->method)->toBe('ประกวดราคา')
+        ->and($first->notice_type)->toBe('invitation')
+        ->and($first->procurement_category)->toBe('works')
+        ->and($first->tags)->toBe(['ก่อสร้าง'])
+        ->and($first->announced_at->toDateString())->toBe('2026-10-06')
+        ->and($first->publication_status)->toBe('draft')
+        ->and($first->attachments()->firstOrFail()->stored_filename)->not->toBe($second->attachments()->firstOrFail()->stored_filename)
+        ->and($first->attachments()->firstOrFail()->sha256)->toBe($second->attachments()->firstOrFail()->sha256)
+        ->and($first->attachments()->firstOrFail()->extraction->candidate['source_values']['announced_at'])->toBe('2569-10-06')
+        ->and($first->attachments()->firstOrFail()->extraction->candidate['base_price'])->toBe('99999.00');
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=0 skipped=2 errors=0')
+        ->assertSuccessful();
+
+    expect(Announcement::query()->count())->toBe(2);
+    portalRawCleanup($importPath);
+});
+
+test('raw OCR malformed dates are rejected without inventing fallback dates', function () {
+    Storage::fake('local');
+
+    $importPath = portalRawFile([
+        portalRawRow(['submission_deadline' => '2569-13-40']),
+        portalRawRow(['submission_deadline' => ['not-a-date']]),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutputToContain('Row 1:')
+        ->expectsOutputToContain('Row 2:')
+        ->expectsOutput('Import complete: imported=0 skipped=0 errors=2')
+        ->assertFailed();
+
+    expect(Announcement::query()->count())->toBe(0)
+        ->and(DocumentExtraction::query()->count())->toBe(0);
+    portalRawCleanup($importPath);
+});
+
+test('implausible Buddhist dates stay reviewable with an explicit warning', function () {
+    Storage::fake('local');
+    $importPath = portalRawFile([
+        portalRawRow(['submission_deadline' => '2525-10-01']),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $announcement = Announcement::query()->sole();
+    $extraction = DocumentExtraction::query()->sole();
+
+    expect($announcement->deadline->toDateString())->toBe('1982-10-01')
+        ->and($announcement->publication_status)->toBe('draft')
+        ->and($extraction->warnings)->toContain('implausible_date:submission_deadline')
+        ->and($extraction->candidate['source_values']['submission_deadline'])->toBe('2525-10-01');
+
+    portalRawCleanup($importPath);
+});
+
+test('reimporting a changed source document reports a conflict without replacing its PDF', function () {
+    Storage::fake('local');
+    $importPath = portalRawFile([portalRawRow()]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $attachment = AnnouncementAttachment::query()->sole();
+    $original = Storage::disk('local')->get($attachment->stored_filename);
+    file_put_contents(dirname(dirname($importPath)).'/data/pdfs/notice-001.pdf', $original."\n% revised");
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutputToContain('Row 1: Database import failed: The source document changed PDF content after import.')
+        ->expectsOutput('Import complete: imported=0 skipped=0 errors=1')
+        ->assertFailed();
+
+    expect(Announcement::query()->count())->toBe(1)
+        ->and(AnnouncementAttachment::query()->sole()->sha256)->toBe(hash('sha256', $original))
+        ->and(Storage::disk('local')->get($attachment->stored_filename))->toBe($original);
+
+    portalRawCleanup($importPath);
+});
+
+test('raw OCR JPEG attachments retain their MIME and original filename', function () {
+    Storage::fake('local');
+
+    $importPath = portalRawFile([
+        portalRawRow(['pdf_path' => 'scanned-source.jpg']),
+    ], true);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $attachment = AnnouncementAttachment::query()->sole();
+
+    expect($attachment->mime_type)->toBe('image/jpeg')
+        ->and($attachment->filename)->toBe('scanned-source.jpg')
+        ->and(Storage::disk('local')->get($attachment->stored_filename))->toBe("\xFF\xD8\xFF\xE0\x00");
+    portalRawCleanup($importPath);
+});
+
+test('raw OCR fields reach the public page only after explicit review and publication', function () {
+    Storage::fake('local');
+
+    $importPath = portalRawFile([
+        portalRawRow([
+            'notice_type' => 'award',
+            'winner_name' => 'บริษัท ตัวอย่าง จำกัด',
+            'winning_price' => 1250000,
+            'submission_deadline' => '2569-10-15',
+            'validation_flags' => ['source_needs_review'],
+        ]),
+    ]);
+
+    artisan('portal:import', ['path' => $importPath])
+        ->expectsOutput('Import complete: imported=1 skipped=0 errors=0')
+        ->assertSuccessful();
+
+    $announcement = Announcement::query()->sole();
+    $extraction = DocumentExtraction::query()->sole();
+    $admin = User::factory()->admin()->create();
+
+    actingAs($admin);
+    patch(route('admin.announcements.publish', $announcement))
+        ->assertSessionHasErrors('publication_status');
+    get(route('procurement.show', $announcement))->assertNotFound();
+
+    $candidate = $extraction->candidate;
+    $approval = collect($candidate)->only([
+        'title', 'organization', 'category', 'method', 'budget', 'location',
+        'reference_price', 'contact_name', 'contact_phone', 'description',
+        'deadline', 'status', 'project_key', 'project_no', 'notice_type',
+        'procurement_category', 'tags', 'display_price', 'display_price_source',
+        'province', 'district', 'subdistrict', 'location_source',
+        'contact_website', 'announcer_name', 'announcer_position',
+        'winner_name', 'winning_price', 'bidders', 'announced_at',
+        'submission_deadline', 'award_announced_at', 'process_status', 'source_id',
+    ])->all();
+
+    put(route('admin.announcements.extractions.approve', [$announcement, $extraction]), $approval)
+        ->assertRedirect(route('admin.announcements.extractions.show', [$announcement, $extraction]));
+
+    expect($announcement->fresh()->publication_status)->toBe('draft')
+        ->and($announcement->winning_price)->toBe('1250000.00')
+        ->and($announcement->submission_deadline->toDateString())->toBe('2026-10-15')
+        ->and($extraction->fresh()->status)->toBe('approved');
+
+    patch(route('admin.announcements.publish', $announcement))
+        ->assertRedirect(route('admin.announcements.index'));
+    Auth::logout();
+
+    get(route('procurement.search', ['query' => 'ก่อสร้างอาคาร']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('announcements.data', 1)
+            ->where('announcements.data.0.notice_type', 'award')
+            ->where('announcements.data.0.budget', null));
+
+    get(route('procurement.show', $announcement))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('announcement.notice_type', 'award')
+            ->where('announcement.winner_name', 'บริษัท ตัวอย่าง จำกัด')
+            ->where('announcement.winning_price', '1250000.00')
+            ->where('announcement.announced_at', '2026-10-06T00:00:00.000000Z')
+            ->missing('announcement.validation_flags')
+            ->missing('announcement.raw_text'));
+
+    app(\App\Support\Procurement\AttachmentStorage::class)
+        ->updateAnnouncement($announcement, ['winner_name' => 'บริษัท ตรวจแก้ จำกัด']);
+
+    expect($announcement->fresh()->publication_status)->toBe('draft')
+        ->and($extraction->fresh()->status)->toBe('review');
+    get(route('procurement.show', $announcement))->assertNotFound();
+
+    portalRawCleanup($importPath);
+});
+
 function portalImportRow(array $overrides = []): array
 {
     return [
@@ -473,6 +683,86 @@ function portalImportRow(array $overrides = []): array
         'record_key' => 'kku:notice-001',
         ...$overrides,
     ];
+}
+
+function portalRawRow(array $overrides = []): array
+{
+    return [
+        'record_key' => 'kku_plan:repeated-title',
+        'project_key' => null,
+        'project_no' => '',
+        'title' => 'ประกวดราคาจ้างก่อสร้างอาคาร',
+        'agency' => 'มหาวิทยาลัยขอนแก่น',
+        'notice_type' => 'invitation',
+        'procurement_category' => 'works',
+        'method' => 'ประกวดราคา',
+        'tags' => ['ก่อสร้าง'],
+        'budget' => null,
+        'reference_price' => null,
+        'display_price' => null,
+        'display_price_source' => 'none',
+        'province' => 'ขอนแก่น',
+        'district' => null,
+        'subdistrict' => null,
+        'location_source' => 'document',
+        'contact_name' => 'เจ้าหน้าที่พัสดุ',
+        'contact_website' => null,
+        'announcer_name' => 'เจ้าหน้าที่พัสดุ',
+        'announcer_position' => null,
+        'winner_name' => null,
+        'winning_price' => null,
+        'bidders' => [],
+        'announced_at' => '2569-10-06',
+        'submission_deadline' => null,
+        'award_announced_at' => null,
+        'source_url' => 'https://example.test/notices/001',
+        'raw_text' => null,
+        'validation_flags' => [],
+        'process_status' => 'unknown',
+        'contact_status' => '',
+        'base_price' => '99999.00',
+        'announce_date' => '06/10/2569',
+        'bid_open_date' => '15/10/2569',
+        'duration' => '',
+        'end_date' => '15/10/2569',
+        'source_id' => 'kku_plan',
+        'pdf_path' => 'notice-001.pdf',
+        'ocr_engine' => 'text',
+        'extraction_method' => 'regex',
+        'procurement_type' => 'ประกวดราคา',
+        'details' => 'ข้อมูลดิบจาก OCR',
+        ...$overrides,
+    ];
+}
+
+function portalRawFile(array $rows, bool $withJpeg = false): string
+{
+    $directory = sys_get_temp_dir().'/portal-raw-'.bin2hex(random_bytes(8));
+    mkdir($directory.'/outputs', 0777, true);
+    mkdir($directory.'/data/pdfs', 0777, true);
+
+    $path = $directory.'/outputs/output.json';
+    file_put_contents($path, "\xEF\xBB\xBF".json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+    file_put_contents($directory.'/data/pdfs/notice-001.pdf', portalImportPdfContents());
+    file_put_contents($directory.'/data/pdfs/notice-002.pdf', portalImportPdfContents());
+    if ($withJpeg) {
+        file_put_contents($directory.'/data/pdfs/scanned-source.jpg', "\xFF\xD8\xFF\xE0\x00");
+    }
+
+    return $path;
+}
+
+function portalRawCleanup(string $path): void
+{
+    $directory = dirname(dirname($path));
+    @unlink($directory.'/data/pdfs/notice-001.pdf');
+    @unlink($directory.'/data/pdfs/notice-002.pdf');
+    @unlink($directory.'/data/pdfs/scanned-source.jpg');
+    @unlink($path);
+    @rmdir($directory.'/data/pdfs');
+    @rmdir($directory.'/data');
+    @rmdir($directory.'/outputs');
+    @rmdir($directory);
 }
 
 function portalImportFile(string $contents): string

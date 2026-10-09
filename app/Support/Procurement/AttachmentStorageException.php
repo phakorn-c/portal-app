@@ -12,7 +12,7 @@ final class AttachmentStorageException extends RuntimeException
         return new self('Attachment storage is busy. Please try again.');
     }
 
-    public static function duplicate(Throwable $previous): self
+    public static function duplicate(?Throwable $previous = null): self
     {
         return new self('This PDF has already been uploaded.', previous: $previous);
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Procurement;
 
 use App\Http\Controllers\Controller;
+use App\Models\Announcement;
 use App\Models\SearchHistory;
 use App\Support\Procurement\AnnouncementSearch;
 use App\Support\Procurement\FilterState;
@@ -31,6 +32,11 @@ class SearchController extends Controller
                 'budget',
                 'deadline',
                 'status',
+                'notice_type',
+                'procurement_category',
+                'display_price',
+                'display_price_source',
+                'province',
             ])
             ->paginate(15)
             ->withQueryString();
@@ -41,7 +47,7 @@ class SearchController extends Controller
             'announcements' => $announcements,
             'filters' => $criteria,
             'pagination' => $announcements->toArray(),
-            'taxonomy' => Taxonomy::forInertia(),
+            'taxonomy' => $this->searchTaxonomy(),
         ]);
     }
 
@@ -52,6 +58,9 @@ class SearchController extends Controller
             'organizations' => $this->arrayFromQuery($request->query('organization', [])),
             'methods' => $this->arrayFromQuery($request->query('method', [])),
             'categories' => $this->arrayFromQuery($request->query('category', [])),
+            'noticeTypes' => $this->arrayFromQuery($request->query('notice_type', [])),
+            'provinces' => $this->arrayFromQuery($request->query('province', [])),
+            'tags' => $this->arrayFromQuery($request->query('tag', [])),
             'budgetRange' => [
                 (float) $request->query('budget_min', 0),
                 $request->query('budget_max') === null ? null : (float) $request->query('budget_max'),
@@ -87,6 +96,37 @@ class SearchController extends Controller
             'budget_desc' => 'budget-high',
             default => $sortBy,
         };
+    }
+
+    private function searchTaxonomy(): array
+    {
+        $taxonomy = Taxonomy::forInertia();
+        $published = Announcement::query()->visible();
+
+        foreach (['organization' => 'organizations', 'method' => 'methods', 'province' => 'provinces'] as $column => $key) {
+            $existing = collect($taxonomy[$key] ?? [])->pluck('value');
+            $taxonomy[$key] = $existing
+                ->merge((clone $published)->whereNotNull($column)->distinct()->pluck($column))
+                ->filter()
+                ->unique()
+                ->map(fn (string $value): array => [
+                    'value' => $value,
+                    'label' => $taxonomy[$column === 'method' ? 'methodLabels' : 'categoryLabels'][$value] ?? $value,
+                ])
+                ->values()
+                ->all();
+        }
+
+        $taxonomy['noticeTypes'] = [
+            ['value' => 'invitation', 'label' => 'ประกาศเชิญชวน'],
+            ['value' => 'award', 'label' => 'ประกาศผู้ชนะ'],
+        ];
+        $taxonomy['tags'] = Announcement::query()->visible()->whereNotNull('tags')
+            ->get(['tags'])->flatMap(fn (Announcement $announcement): array => $announcement->tags ?? [])
+            ->unique()->sort()->values()
+            ->map(fn (string $tag): array => ['value' => $tag, 'label' => $tag])->all();
+
+        return $taxonomy;
     }
 
     private function storeSearchHistory(Request $request, array $criteria, int $resultCount): void

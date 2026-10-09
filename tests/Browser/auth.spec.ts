@@ -275,7 +275,13 @@ test('registered user can save current procurement search', async ({
     await page
         .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
         .fill(announcement.title);
+    const searchNavigation = page.waitForURL(
+        (url) =>
+            url.pathname === '/procurement' &&
+            url.searchParams.get('query') === announcement.title,
+    );
     await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
+    await searchNavigation;
 
     await page.locator('[data-test="procurement-save-search-trigger"]').click();
     await page
@@ -362,7 +368,13 @@ test('admin publish creates notification for saved search', async ({
     await page
         .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')
         .fill(announcementTitle);
+    const searchNavigation = page.waitForURL(
+        (url) =>
+            url.pathname === '/procurement' &&
+            url.searchParams.get('query') === announcementTitle,
+    );
     await page.getByRole('button', { name: 'ค้นหา', exact: true }).click();
+    await searchNavigation;
     await page.locator('[data-test="procurement-save-search-trigger"]').click();
     await page
         .locator('[data-test="procurement-save-search-name"]')

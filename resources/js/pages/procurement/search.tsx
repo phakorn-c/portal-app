@@ -10,6 +10,7 @@ import { ResultToolbar } from '@/components/procurement-search/result-toolbar';
 import { SavedSearchDialog } from '@/components/procurement-search/saved-search-dialog';
 import {
     type SearchTaxonomy,
+    type SearchCriteria,
     useSearchFilters,
 } from '@/components/procurement-search/search-filters';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,6 @@ import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import AppHeaderLayout from '@/layouts/app/app-header-layout';
 import type { SharedData } from '@/types';
-import type { FilterState } from '@/types/procurement';
 
 type AnnouncementPagination = {
     data: SearchAnnouncement[];
@@ -28,7 +28,7 @@ type AnnouncementPagination = {
 
 type PageProps = SharedData & {
     announcements: AnnouncementPagination;
-    filters: FilterState;
+    filters: SearchCriteria;
     pagination: AnnouncementPagination;
     taxonomy: SearchTaxonomy;
 };

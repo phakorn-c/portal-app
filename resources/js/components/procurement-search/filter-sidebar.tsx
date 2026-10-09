@@ -28,6 +28,12 @@ export function FilterSidebar({
         setSelectedMethods,
         selectedCategories,
         setSelectedCategories,
+        selectedNoticeTypes,
+        setSelectedNoticeTypes,
+        selectedProvinces,
+        setSelectedProvinces,
+        selectedTags,
+        setSelectedTags,
         toggleFilter,
         clearAllFilters,
         hasActiveFilters,
@@ -209,6 +215,62 @@ export function FilterSidebar({
                             ))}
                         </div>
                     </div>
+                    {(
+                        [
+                            {
+                                title: 'ประเภทประกาศ',
+                                options: taxonomy.noticeTypes,
+                                values: selectedNoticeTypes,
+                                setter: setSelectedNoticeTypes,
+                                key: 'noticeTypes',
+                            },
+                            {
+                                title: 'จังหวัด',
+                                options: taxonomy.provinces,
+                                values: selectedProvinces,
+                                setter: setSelectedProvinces,
+                                key: 'provinces',
+                            },
+                            {
+                                title: 'แท็ก',
+                                options: taxonomy.tags,
+                                values: selectedTags,
+                                setter: setSelectedTags,
+                                key: 'tags',
+                            },
+                        ] as const
+                    ).map((facet) => (
+                        <fieldset key={facet.key} className="space-y-3">
+                            <legend className="text-sm font-bold tracking-wide text-foreground">
+                                {facet.title}
+                            </legend>
+                            <div className="custom-scrollbar max-h-48 space-y-2 overflow-y-auto pr-2">
+                                {facet.options.map((option) => (
+                                    <label
+                                        key={option.value}
+                                        className="group flex cursor-pointer items-start gap-3"
+                                    >
+                                        <Checkbox
+                                            checked={facet.values.includes(
+                                                option.value,
+                                            )}
+                                            onCheckedChange={() =>
+                                                toggleFilter(
+                                                    option.value,
+                                                    facet.values,
+                                                    facet.setter,
+                                                    facet.key,
+                                                )
+                                            }
+                                        />
+                                        <span className="text-sm text-muted-foreground transition-colors group-hover:text-primary">
+                                            {option.label}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+                    ))}
                 </CardContent>
             </Card>
         </aside>

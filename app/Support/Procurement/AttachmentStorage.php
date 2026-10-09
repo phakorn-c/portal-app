@@ -39,6 +39,28 @@ final class AttachmentStorage
         'status',
         'source_url',
         'source_reference',
+        'project_key',
+        'project_no',
+        'notice_type',
+        'procurement_category',
+        'tags',
+        'display_price',
+        'display_price_source',
+        'province',
+        'district',
+        'subdistrict',
+        'location_source',
+        'contact_website',
+        'announcer_name',
+        'announcer_position',
+        'winner_name',
+        'winning_price',
+        'bidders',
+        'announced_at',
+        'submission_deadline',
+        'award_announced_at',
+        'process_status',
+        'source_id',
     ];
 
     public function store(
@@ -93,6 +115,12 @@ final class AttachmentStorage
             throw AttachmentStorageException::writeFailed();
         }
 
+        if (AnnouncementAttachment::query()->where('sha256', $sha256)->exists()) {
+            $this->deleteNewFiles($disk, $uploadingKey, $finalKey);
+
+            throw AttachmentStorageException::duplicate();
+        }
+
         try {
             [$attachment, $extraction, $oldStoredKeys] = DB::transaction(function () use (
                 $announcement,
@@ -121,6 +149,10 @@ final class AttachmentStorage
                 $extraction = $attachment->extraction()->create(['status' => 'pending']);
 
                 $oldAttachments->each->delete();
+
+                if ($parent->source_document_key !== null && $parent->publication_status === 'published') {
+                    $parent->update(['publication_status' => 'draft', 'published_at' => null]);
+                }
 
                 return [$attachment, $extraction, $this->replaceableKeys($oldAttachments)];
             });
@@ -197,6 +229,10 @@ final class AttachmentStorage
                     'approved_at' => null,
                     'approved_by' => null,
                 ]));
+
+            if ($announcement->source_document_key !== null && $announcement->publication_status === 'published') {
+                $announcement->update(['publication_status' => 'draft', 'published_at' => null]);
+            }
         }
 
         return $announcement;
@@ -214,7 +250,7 @@ final class AttachmentStorage
     private function isReplaceableKey(string $key): bool
     {
         return in_array(dirname($key), ['attachments', self::MANAGED_ROOT], true)
-            && str_ends_with(basename($key), '.pdf');
+            && preg_match('/\.(pdf|jpg|jpeg)$/i', basename($key)) === 1;
     }
 
     private function deleteRegularStoredFile(FilesystemAdapter $disk, string $key): void

@@ -76,6 +76,46 @@ test('default search includes published announcements above ten million but expl
     }
 });
 
+test('OCR notice location and tag filters include unknown budgets only without price bounds', function () {
+    $award = Announcement::factory()->published()->create([
+        'title' => 'ประกาศผู้ชนะงานก่อสร้าง',
+        'notice_type' => 'award',
+        'province' => 'ขอนแก่น',
+        'tags' => ['ก่อสร้าง', 'โรงพยาบาล'],
+        'budget' => null,
+        'deadline' => null,
+        'status' => null,
+        'organization' => 'หน่วยงานที่นำเข้าจาก OCR',
+        'method' => 'ประกวดราคา',
+    ]);
+    Announcement::factory()->published()->create([
+        'notice_type' => 'invitation',
+        'province' => 'กรุงเทพมหานคร',
+        'tags' => ['ก่อสร้าง'],
+    ]);
+
+    $filters = ['notice_type' => 'award', 'province' => 'ขอนแก่น', 'tag' => 'ก่อสร้าง'];
+
+    get(route('procurement.search', $filters))->assertInertia(fn (Assert $page) => $page
+        ->where('announcements.total', 1)
+        ->where('announcements.data.0.id', $award->id)
+        ->where('announcements.data.0.budget', null)
+        ->where('filters.noticeTypes', ['award'])
+        ->where('filters.provinces', ['ขอนแก่น'])
+        ->where('filters.tags', ['ก่อสร้าง'])
+        ->where('taxonomy.provinces.0.value', 'ขอนแก่น')
+        ->where('taxonomy.tags.0.value', 'ก่อสร้าง')
+    );
+
+    get(route('procurement.search', [...$filters, 'budget_min' => 1]))
+        ->assertInertia(fn (Assert $page) => $page->where('announcements.total', 0));
+
+    get(route('procurement.search', ['sort' => 'budget_asc']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('announcements.data.4.id', $award->id)
+            ->where('announcements.data.4.budget', null));
+});
+
 test('keyword filter returns only matching announcements', function () {
     $response = get(route('procurement.search', ['query' => 'clinic renovation']));
 

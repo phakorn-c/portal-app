@@ -54,13 +54,14 @@ type Announcement = {
     organization: string;
     method: string;
     category: string;
-    budget: number;
-    deadline: string;
+    budget: number | string | null;
+    deadline: string | null;
     published_at: string | null;
-    status: 'open' | 'urgent' | 'closing' | 'closed';
+    status: 'open' | 'urgent' | 'closing' | 'closed' | null;
     publication_status: 'draft' | 'published' | 'hidden';
     source_url: string | null;
     source_reference: string | null;
+    source_document_key: string | null;
     attachments: {
         filename: string;
         extraction?: { id: number; status: string } | null;
@@ -93,8 +94,8 @@ interface AdminDashboardProps {
         categories: TaxonomyOption[];
     };
 }
-function formatBudget(amount: number) {
-    return amount.toLocaleString('th-TH');
+function formatBudget(amount: number | string | null) {
+    return amount === null ? '-' : `฿${Number(amount).toLocaleString('th-TH')}`;
 }
 type AnnouncementModalProps = {
     isOpen: boolean;
@@ -119,7 +120,7 @@ function AnnouncementModal({
             organization: '',
             method: 'e-bidding',
             category: 'goods',
-            budget: 0,
+            budget: '0',
             deadline: '',
             status: 'open',
             publication_status: 'draft',
@@ -137,11 +138,15 @@ function AnnouncementModal({
                 organization: announcement?.organization || '',
                 method: announcement?.method || 'e-bidding',
                 category: announcement?.category || 'goods',
-                budget: announcement?.budget || 0,
+                budget: announcement
+                    ? announcement.budget == null
+                        ? ''
+                        : String(announcement.budget)
+                    : '0',
                 deadline: announcement?.deadline
                     ? announcement.deadline.split('T')[0].split(' ')[0]
                     : '',
-                status: announcement?.status || 'open',
+                status: announcement ? (announcement.status ?? '') : 'open',
                 publication_status: announcement?.publication_status || 'draft',
                 source_url: announcement?.source_url || '',
                 source_reference: announcement?.source_reference || '',
@@ -215,28 +220,41 @@ function AnnouncementModal({
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="organization">หน่วยงาน</Label>
-                            <Select
-                                value={data.organization}
-                                onValueChange={(value) =>
-                                    setData('organization', value)
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="เลือกหน่วยงาน" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {taxonomy.organizations.map(
-                                        (organization) => (
-                                            <SelectItem
-                                                key={organization.value}
-                                                value={organization.value}
-                                            >
-                                                {organization.label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                            {announcement?.source_document_key ? (
+                                <Input
+                                    id="organization"
+                                    value={data.organization}
+                                    onChange={(event) =>
+                                        setData(
+                                            'organization',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            ) : (
+                                <Select
+                                    value={data.organization}
+                                    onValueChange={(value) =>
+                                        setData('organization', value)
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="เลือกหน่วยงาน" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {taxonomy.organizations.map(
+                                            (organization) => (
+                                                <SelectItem
+                                                    key={organization.value}
+                                                    value={organization.value}
+                                                >
+                                                    {organization.label}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            )}
                             {errors.organization && (
                                 <p className="text-sm text-destructive">
                                     {errors.organization}
@@ -250,7 +268,7 @@ function AnnouncementModal({
                                 type="number"
                                 value={data.budget}
                                 onChange={(e) =>
-                                    setData('budget', Number(e.target.value))
+                                    setData('budget', e.target.value)
                                 }
                             />
                             {errors.budget && (
@@ -263,26 +281,36 @@ function AnnouncementModal({
                             <Label htmlFor="method">
                                 วิธีการจัดซื้อจัดจ้าง
                             </Label>
-                            <Select
-                                value={data.method}
-                                onValueChange={(value) =>
-                                    setData('method', value)
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="เลือกวิธี" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {taxonomy.methods.map((method) => (
-                                        <SelectItem
-                                            key={method.value}
-                                            value={method.value}
-                                        >
-                                            {method.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {announcement?.source_document_key ? (
+                                <Input
+                                    id="method"
+                                    value={data.method}
+                                    onChange={(event) =>
+                                        setData('method', event.target.value)
+                                    }
+                                />
+                            ) : (
+                                <Select
+                                    value={data.method}
+                                    onValueChange={(value) =>
+                                        setData('method', value)
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="เลือกวิธี" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {taxonomy.methods.map((method) => (
+                                            <SelectItem
+                                                key={method.value}
+                                                value={method.value}
+                                            >
+                                                {method.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                             {errors.method && (
                                 <p className="text-sm text-destructive">
                                     {errors.method}
@@ -566,9 +594,7 @@ export default function AdminDashboard({
             key: 'budget',
             header: 'งบประมาณ',
             cell: (item) => (
-                <span className="font-medium">
-                    ฿{formatBudget(item.budget)}
-                </span>
+                <span className="font-medium">{formatBudget(item.budget)}</span>
             ),
             className: 'text-right',
             headerClassName: 'text-right',

@@ -9,27 +9,24 @@
 
 ## เตรียมข้อมูลจาก `portal-ocr`
 
-ต้องมี Docker Desktop, `portal-app/` กับ `portal-ocr/` อยู่ข้างกัน, Python 3.10+, `uv` และ corpus เดิมที่ `portal-ocr/outputs/output.json` กับ `portal-ocr/data/pdfs/` ทำคำสั่งนี้จาก `portal-ocr/`:
+ต้องมี Docker Desktop, `portal-app/` กับ `portal-ocr/` อยู่ข้างกัน และไฟล์ `portal-ocr/outputs/output.json` กับ `portal-ocr/data/pdfs/` ฟิลด์ใน `output.json` คือข้อตกลงนำเข้า ไม่ต้องแปลงเป็น `portal_import.json` ที่เติมงบและกำหนดส่งจากฟิลด์เก่า:
 
 ```bash
-shasum data/ocr_texts/*.txt | shasum
-uv run --locked python portal_export.py
-jq '{rows:length,drafts:([.[]|select(.publication_status=="draft" and .published_at==null)]|length),with_pdf:([.[]|select(.pdf_path!="")]|length),with_raw_text:([.[]|select(has("raw_text"))]|length),with_flags:([.[]|select(has("validation_flags"))]|length)}' outputs/portal_import.json
-shasum data/ocr_texts/*.txt | shasum
+php -r '$rows=json_decode(preg_replace("/^\xEF\xBB\xBF/", "", file_get_contents("outputs/output.json")), true, flags: JSON_THROW_ON_ERROR); echo count($rows)." rows\n";'
 ```
 
-ค่า hash ก่อนและหลังต้องตรงกัน การซ้อม 11 ก.ย. 2569 ส่งออก 90 แถว/90 PDF แต่ไม่มี `raw_text` หรือ `validation_flags` แยกเป็นฟิลด์ จึงอย่าเรียกข้อความย่อใน `description` ว่า raw OCR
+ชุดตัวอย่างวันที่ 9 ต.ค. 2569 มี 57 เอกสาร (56 PDF และ JPEG หนึ่งไฟล์) บาง `record_key` ซ้ำแต่ URL/เอกสารต่างกัน ห้ามใช้จำนวน `record_key` ที่ไม่ซ้ำเป็นจำนวนเอกสารจริง
 
 ย้าย JSON และโฟลเดอร์เอกสารไปไว้ข้างกันใน Sail (ทำจาก `portal-app/`):
 
 ```bash
 ./vendor/bin/sail up -d
-docker compose exec laravel.test mkdir -p /tmp/portal-demo
-docker compose cp ../portal-ocr/outputs/portal_import.json laravel.test:/tmp/portal-demo/portal_import.json
-docker compose cp ../portal-ocr/outputs/portal_attachments laravel.test:/tmp/portal-demo/portal_attachments
+docker compose exec laravel.test mkdir -p /tmp/portal-demo/pdfs
+docker compose cp ../portal-ocr/outputs/output.json laravel.test:/tmp/portal-demo/output.json
+docker compose cp ../portal-ocr/data/pdfs/. laravel.test:/tmp/portal-demo/pdfs/
 ```
 
-ตัวนำเข้าปฏิเสธ path ที่เป็น absolute/ย้อนขึ้นโฟลเดอร์, PDF ที่หายหรือไม่ใช่ PDF และเนื้อหาไฟล์ที่ซ้ำ โดยไม่สร้างประกาศบางส่วนทิ้งไว้
+ตัวนำเข้าปฏิเสธ path ที่เป็น absolute/ย้อนขึ้นโฟลเดอร์และไฟล์ที่ชนิดจริงไม่ตรง PDF/JPEG โดยไม่สร้างประกาศบางส่วนทิ้งไว้ เอกสารต่างกันที่มีเนื้อหาไฟล์ซ้ำกันไม่ถูกยุบรวม
 
 ## รีเซ็ตฐานเดโมอย่างปลอดภัย
 
@@ -48,15 +45,15 @@ seed เริ่มต้นมี 8 ประกาศ 4 ไฟล์แนบ
 ## นำเข้า ตรวจ และเผยแพร่
 
 ```bash
-./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan portal:import /tmp/portal-demo/portal_import.json
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan portal:import /tmp/portal-demo/output.json --pdf-dir=/tmp/portal-demo/pdfs
 ```
 
-การซ้อม 11 ก.ย. 2569 ได้ `imported=70 skipped=0 errors=20` และ exit code ไม่ใช่ 0 เพราะ 20 แถวมีชื่อหน่วยงานไม่อยู่ใน `app/Support/Procurement/Taxonomy.php` อย่าฝืนแก้ JSON ด้วยการเดาหน่วยงาน การรันซ้ำโดยไม่รีเซ็ตจะข้าม 70 แถวเดิม ให้แก้ mapping ที่ตัวส่งออก `portal-ocr` แล้วซ้อมใหม่
+การซ้อมชุดวันที่ 9 ต.ค. 2569 บน SQLite แยกต่างหากได้ `imported=57 skipped=0 errors=0`; รันซ้ำได้ `imported=0 skipped=57 errors=0` หลังผู้ดูแลตรวจและอนุมัติจึงเผยแพร่ได้จริง หากเอกสารเดิมเปลี่ยนเนื้อหา ตัวนำเข้ารายงาน conflict แทนการเขียนทับประกาศที่ตรวจแล้ว
 
 อ่าน ID ที่รันได้จริงก่อนเปิดหน้าตรวจ (อย่าใช้เลขจากการซ้อมครั้งเก่า):
 
 ```bash
-./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan tinker --execute='$a=\App\Models\Announcement::where("source_reference","kku_plan:201b887d_kku_plan")->firstOrFail(); $f=$a->attachments()->firstOrFail(); $e=$f->extraction()->firstOrFail(); throw_unless($a->publication_status === "draft" && $e->status === "review" && $e->method === "portal-ocr", "Unsafe import state"); dump(["announcement_id"=>$a->id,"attachment_id"=>$f->id,"extraction_id"=>$e->id]);'
+./vendor/bin/sail exec -e APP_ENV=testing -e DB_CONNECTION=pgsql -e DB_HOST=pgsql -e DB_DATABASE=testing -e QUEUE_CONNECTION=sync laravel.test php artisan tinker --execute='$a=\App\Models\Announcement::whereNotNull("source_document_key")->firstOrFail(); $f=$a->attachments()->firstOrFail(); $e=$f->extraction()->firstOrFail(); throw_unless($a->publication_status === "draft" && $e->status === "review" && $e->method === "portal-ocr", "Unsafe import state"); dump(["announcement_id"=>$a->id,"attachment_id"=>$f->id,"extraction_id"=>$e->id]);'
 ```
 
 เปิดเว็บแยกพอร์ตด้วยฐาน `testing` โดยไม่เปลี่ยนฐานของเว็บปกติ:
@@ -66,7 +63,7 @@ DEMO_WEB_CONTAINER=$(APP_PORT=8001 VITE_PORT=5174 docker compose run -d --rm --s
 curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:8001/procurement
 ```
 
-ต้องได้ HTTP `200` เข้าระบบด้วยบัญชีผู้ดูแลจากคู่มือเดโม เปิด `/admin/announcements/{announcement_id}/extractions/{extraction_id}` ตรวจและอนุมัติ แล้วกลับ `/admin` เพื่อ **กดเผยแพร่แยกอีกครั้ง** จากนั้นออกจากระบบ ค้นประกาศใน `/procurement` และเปิด PDF ที่ `/procurement/announcements/{announcement_id}/pdf/{attachment_id}` ตรวจว่าเป็น `application/pdf` และ hash ตรงกับไฟล์ต้นฉบับ เสร็จแล้วหยุดเว็บชั่วคราวด้วย `docker stop "$DEMO_WEB_CONTAINER"`
+ต้องได้ HTTP `200` เข้าระบบด้วยบัญชีผู้ดูแลจากคู่มือเดโม เปิด `/admin/announcements/{announcement_id}/extractions/{extraction_id}` ตรวจข้อมูลที่ยังไม่ทราบ/คำเตือน แก้และอนุมัติ แล้วกลับ `/admin` เพื่อ **กดเผยแพร่แยกอีกครั้ง** จากนั้นออกจากระบบ ค้นประกาศใน `/procurement` และเปิดเอกสารที่ `/procurement/announcements/{announcement_id}/pdf/{attachment_id}` ตรวจ MIME เป็น `application/pdf` หรือ `image/jpeg` ให้ตรงกับต้นฉบับ เสร็จแล้วหยุดเว็บชั่วคราวด้วย `docker stop "$DEMO_WEB_CONTAINER"`
 
 ## ตรวจระบบ
 
@@ -85,7 +82,7 @@ Playwright ใช้ไฟล์ SQLite สำหรับทดสอบแล�
 
 ## เมื่อมีปัญหา
 
-- **ข้อมูลนำเข้าไม่ครบ:** ดู error รายแถวและ taxonomy; แก้ตัวส่งออก ไม่สร้างข้อมูลที่ไม่มีหลักฐาน หากต้องเริ่มใหม่ให้ผ่าน guard ด้านบนก่อนรีเซ็ต
+- **ข้อมูลนำเข้าไม่ครบ:** ดู error รายแถวและไฟล์ต้นฉบับ อย่าเติมข้อมูลที่ไม่มีหลักฐาน หากต้องเริ่มใหม่ให้ผ่าน guard ด้านบนก่อนรีเซ็ต
 - **PDF ค้างในที่เก็บ:** `./vendor/bin/sail artisan procurement:reconcile-attachments` แสดงรายการแบบไม่ลบ ตรวจผลก่อนใช้ `--delete`; ไฟล์อายุน้อยกว่า 24 ชั่วโมงและไฟล์ที่ยังมีการอ้างอิงจะไม่ถูกลบ
 - **ผลสกัดค้าง:** สถานะ `processing` เกิน 360 วินาทีจึง retry ได้; จำกัด 3 ครั้ง ผลล้มเหลวของข้อมูลตัวอย่างหมายเลข 8 ถูกตั้งใจให้ล้มเหลว
-- **ที่มาข้อมูล:** `demo.invalid` เป็น URL ตัวอย่าง, การนำเข้า 70/20 ไม่ใช่คะแนนความแม่นยำ OCR และยังไม่มี pipeline สำหรับ deploy/rollback หรือดูแล queue worker บน production
+- **ที่มาข้อมูล:** `demo.invalid` เป็น URL ตัวอย่าง ผลนำเข้า 57/57 ของชุดทดสอบไม่ใช่คะแนนความแม่นยำ OCR และยังไม่มี pipeline สำหรับ deploy/rollback หรือดูแล queue worker บน production

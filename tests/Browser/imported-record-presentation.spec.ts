@@ -1,6 +1,20 @@
+import {
+    copyFileSync,
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { expect, type Page, test } from '@playwright/test';
 
-import { artisan, resetDatabase } from './support/test-environment';
+import {
+    artisan,
+    projectRoot,
+    resetDatabase,
+} from './support/test-environment';
 
 const importedRecord = {
     title: 'ประกวดราคาจ้างปรับปรุงระบบระบายน้ำภายในมหาวิทยาลัย',
@@ -87,6 +101,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 test('real imported record renders polished Thai facts on responsive guest pages after explicit review and publish', async ({
     page,
 }, testInfo) => {
+    test.setTimeout(120_000);
     resetDatabase();
     const announcementId = importRecord();
 
@@ -136,7 +151,7 @@ test('real imported record renders polished Thai facts on responsive guest pages
     await expect(
         page.getByRole('slider', { name: 'งบประมาณสูงสุด' }),
     ).toBeVisible();
-    await page.goto('/procurement');
+    await page.goto('/procurement', { waitUntil: 'domcontentloaded' });
     const minimumBudget = page.getByRole('slider', {
         name: 'งบประมาณต่ำสุด',
     });
@@ -211,7 +226,7 @@ test('real imported record renders polished Thai facts on responsive guest pages
         }),
     ).toBeVisible();
     await expect(
-        page.getByText(importedRecord.budget, { exact: true }),
+        page.getByText(importedRecord.budget, { exact: true }).first(),
     ).toBeVisible();
     await expect(
         page.getByText(importedRecord.deadline, { exact: true }),
@@ -259,4 +274,133 @@ test('real imported record renders polished Thai facts on responsive guest pages
     }
 
     expect(browserErrors).toEqual([]);
+});
+
+test('agreed raw OCR fields remain reviewable and render without invented prices or mobile overflow', async ({
+    page,
+}, testInfo) => {
+    test.setTimeout(120_000);
+    resetDatabase();
+    const root = mkdtempSync(join(tmpdir(), 'portal-ocr-browser-'));
+    const sourceUrl = 'https://example.test/raw-award-2569';
+    const title = 'ประกาศผู้ชนะงานก่อสร้างศูนย์บริการประชาชน';
+    const tag = `${title} รายละเอียดการจัดซื้อจัดจ้างโครงการประจำปีงบประมาณ พ.ศ. 2569`;
+
+    try {
+        mkdirSync(join(root, 'outputs'));
+        mkdirSync(join(root, 'data', 'pdfs'), { recursive: true });
+        copyFileSync(
+            join(
+                projectRoot,
+                'tests/Fixtures/Procurement/portal-import-round-trip/portal_attachments/drainage-project.pdf',
+            ),
+            join(root, 'data', 'pdfs', 'raw-award.pdf'),
+        );
+        writeFileSync(
+            join(root, 'outputs', 'output.json'),
+            `\uFEFF${JSON.stringify([
+                {
+                    record_key: 'raw-award-2569',
+                    source_id: 'test_source',
+                    source_url: sourceUrl,
+                    pdf_path: 'raw-award.pdf',
+                    title,
+                    agency: 'มหาวิทยาลัยขอนแก่น',
+                    notice_type: 'award',
+                    procurement_category: 'works',
+                    method: 'ประกวดราคา',
+                    tags: [tag],
+                    province: 'ขอนแก่น',
+                    budget: null,
+                    base_price: '99999.00',
+                    reference_price: null,
+                    display_price: null,
+                    display_price_source: 'none',
+                    announced_at: '2569-10-06',
+                    submission_deadline: null,
+                    end_date: '15/10/2569',
+                    process_status: 'unknown',
+                    winner_name: 'บริษัท ตัวอย่าง จำกัด',
+                    winning_price: 96300,
+                    bidders: [],
+                    validation_flags: ['review_sensitive_amount'],
+                    raw_text: 'PRIVATE_RAW_OCR_MARKER',
+                },
+            ])}`,
+        );
+
+        artisan('portal:import', join(root, 'outputs', 'output.json'));
+        const importedId = Number.parseInt(
+            artisan(
+                'tinker',
+                '--execute',
+                `print(\\App\\Models\\Announcement::query()->where('source_url', '${sourceUrl}')->value('id'));`,
+            ).trim(),
+            10,
+        );
+        expect(Number.isInteger(importedId)).toBe(true);
+        expect(
+            (
+                await page.goto(`/procurement/announcements/${importedId}`)
+            )?.status(),
+        ).toBe(404);
+
+        await loginAsAdmin(page);
+        await page.goto('/admin');
+        await page
+            .locator(`[data-test="extraction-review-link-${importedId}"]`)
+            .first()
+            .click();
+        await expect(page.locator('#budget')).toHaveValue('');
+        await expect(page.locator('#deadline')).toHaveValue('');
+        await expect(page.locator('#announced_at')).toHaveValue('2026-10-06');
+        await page.locator('#display_price').fill('96300');
+        await page
+            .locator('#display_price_source')
+            .selectOption('winning_price');
+        await page.locator('[data-test="extraction-approve-submit"]').click();
+        await expect(
+            page.locator('[data-test="extraction-approved"]'),
+        ).toBeVisible();
+
+        await page.goto('/admin');
+        const row = page
+            .locator('[data-test="admin-announcement-row"]')
+            .filter({
+                hasText: title,
+            });
+        await row.locator('[data-test="admin-announcement-publish"]').click();
+        await expect(
+            row.locator('[data-test="admin-announcement-publish"]'),
+        ).toHaveAttribute('title', 'ซ่อน');
+        await logout(page);
+
+        await page.goto(`/procurement?query=${encodeURIComponent(title)}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        const card = page.locator('article').filter({ hasText: title });
+        await expect(card).toContainText('฿ 96,300.00');
+        await expect(card).toContainText('ประกาศผู้ชนะ');
+        await page.goto(`/procurement/announcements/${importedId}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await expect(page.getByText('บริษัท ตัวอย่าง จำกัด')).toBeVisible();
+        await expect(
+            page.getByText('ไม่ทราบสถานะ', { exact: true }).first(),
+        ).toBeVisible();
+        await expect(page.getByText(tag)).toBeVisible();
+        await expect(page.getByText('PRIVATE_RAW_OCR_MARKER')).toHaveCount(0);
+        await expect(page.getByText('review_sensitive_amount')).toHaveCount(0);
+
+        for (const width of [375, 1280]) {
+            await page.setViewportSize({ width, height: 900 });
+            await expectNoHorizontalOverflow(page);
+            await page.screenshot({
+                path: testInfo.outputPath(`raw-ocr-detail-${width}.png`),
+                fullPage: true,
+            });
+        }
+    } finally {
+        rmSync(root, { recursive: true, force: true });
+    }
 });

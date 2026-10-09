@@ -7,6 +7,10 @@ import { ReviewHeader } from '@/components/extraction-review/review-header';
 import {
     type ApprovalFormData,
     type ApprovalFormErrors,
+    type BidderFormRow,
+    candidateArray,
+    candidateScalar,
+    type CandidateValue,
     type ReviewAnnouncement,
     type ReviewAttachment,
     type ReviewExtraction,
@@ -24,28 +28,96 @@ type Props = {
     taxonomy: ReviewTaxonomy;
 };
 
+function isRecordValue(
+    value: CandidateValue,
+): value is { [key: string]: CandidateValue } {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function scalarText(value: CandidateValue | undefined): string {
+    return typeof value === 'string' || typeof value === 'number'
+        ? String(value)
+        : '';
+}
+
+function seedBidders(
+    candidate: ReviewExtraction['candidate'],
+): BidderFormRow[] {
+    return candidateArray(candidate, 'bidders').map((item) => {
+        if (isRecordValue(item)) {
+            const name = item.name ?? item.bidder_name;
+            const price = item.price ?? item.bid_price;
+
+            return { name: scalarText(name), price: scalarText(price) };
+        }
+
+        return { name: scalarText(item), price: '' };
+    });
+}
+
+function seedTags(candidate: ReviewExtraction['candidate']): string {
+    return candidateArray(candidate, 'tags')
+        .map((item) => scalarText(item))
+        .filter((item) => item !== '')
+        .join(', ');
+}
+
+function nullableNumber(value: string): number | null {
+    return value.trim() === '' ? null : Number(value);
+}
+
+function nullableText(value: string): string | null {
+    return value.trim() === '' ? null : value;
+}
+
+function nullableDate(value: string): string | null {
+    return value === '' ? null : value;
+}
+
 export default function ExtractionReview({
     announcement,
     attachment,
     extraction,
     taxonomy,
 }: Props) {
-    const candidateValue = (key: string) =>
-        String(extraction.candidate?.[key] ?? '');
+    const candidate = extraction.candidate;
+    const scalar = (key: string) => candidateScalar(candidate, key);
     const { data, setData, put, processing, errors, transform } =
         useForm<ApprovalFormData>({
-            title: candidateValue('title'),
-            organization: candidateValue('organization'),
-            category: candidateValue('category'),
-            method: candidateValue('method'),
-            budget: candidateValue('budget'),
-            location: candidateValue('location'),
-            reference_price: candidateValue('reference_price'),
-            contact_name: candidateValue('contact_name'),
-            contact_phone: candidateValue('contact_phone'),
-            description: candidateValue('description'),
-            deadline: candidateValue('deadline'),
-            status: candidateValue('status'),
+            title: scalar('title'),
+            organization: scalar('organization'),
+            category: scalar('category'),
+            method: scalar('method'),
+            budget: scalar('budget'),
+            deadline: scalar('deadline'),
+            status: scalar('status'),
+            reference_price: scalar('reference_price'),
+            contact_name: scalar('contact_name'),
+            contact_phone: scalar('contact_phone'),
+            description: scalar('description'),
+            location: scalar('location'),
+            notice_type: scalar('notice_type'),
+            procurement_category: scalar('procurement_category'),
+            tags: seedTags(candidate),
+            display_price: scalar('display_price'),
+            display_price_source: scalar('display_price_source'),
+            province: scalar('province'),
+            district: scalar('district'),
+            subdistrict: scalar('subdistrict'),
+            location_source: scalar('location_source'),
+            contact_website: scalar('contact_website'),
+            announcer_name: scalar('announcer_name'),
+            announcer_position: scalar('announcer_position'),
+            winner_name: scalar('winner_name'),
+            winning_price: scalar('winning_price'),
+            bidders: seedBidders(candidate),
+            announced_at: scalar('announced_at'),
+            submission_deadline: scalar('submission_deadline'),
+            award_announced_at: scalar('award_announced_at'),
+            process_status: scalar('process_status'),
+            project_key: scalar('project_key'),
+            project_no: scalar('project_no'),
+            source_id: scalar('source_id'),
         });
     const formErrors = errors as ApprovalFormErrors;
     const retryForm = useForm({});
@@ -59,15 +131,46 @@ export default function ExtractionReview({
         event.preventDefault();
         transform((formData) => ({
             ...formData,
-            budget: formData.budget === '' ? null : Number(formData.budget),
-            location: formData.location || null,
-            reference_price:
-                formData.reference_price === ''
-                    ? null
-                    : Number(formData.reference_price),
-            contact_name: formData.contact_name || null,
-            contact_phone: formData.contact_phone || null,
-            description: formData.description || null,
+            budget: nullableNumber(formData.budget),
+            deadline: nullableDate(formData.deadline),
+            status: nullableText(formData.status),
+            reference_price: nullableNumber(formData.reference_price),
+            contact_name: nullableText(formData.contact_name),
+            contact_phone: nullableText(formData.contact_phone),
+            description: nullableText(formData.description),
+            location: nullableText(formData.location),
+            notice_type: nullableText(formData.notice_type),
+            procurement_category: nullableText(formData.procurement_category),
+            tags: formData.tags
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter((tag) => tag !== ''),
+            display_price: nullableNumber(formData.display_price),
+            display_price_source: nullableText(formData.display_price_source),
+            province: nullableText(formData.province),
+            district: nullableText(formData.district),
+            subdistrict: nullableText(formData.subdistrict),
+            location_source: nullableText(formData.location_source),
+            contact_website: nullableText(formData.contact_website),
+            announcer_name: nullableText(formData.announcer_name),
+            announcer_position: nullableText(formData.announcer_position),
+            winner_name: nullableText(formData.winner_name),
+            winning_price: nullableNumber(formData.winning_price),
+            bidders: formData.bidders
+                .filter(
+                    (row) => row.name.trim() !== '' || row.price.trim() !== '',
+                )
+                .map((row) => ({
+                    name: row.name.trim(),
+                    price: nullableNumber(row.price),
+                })),
+            announced_at: nullableDate(formData.announced_at),
+            submission_deadline: nullableDate(formData.submission_deadline),
+            award_announced_at: nullableDate(formData.award_announced_at),
+            process_status: nullableText(formData.process_status),
+            project_key: nullableText(formData.project_key),
+            project_no: nullableText(formData.project_no),
+            source_id: nullableText(formData.source_id),
         }));
         put(approve.url([announcement.id, extraction.id]));
     };
@@ -108,6 +211,9 @@ export default function ExtractionReview({
                                 errors={formErrors}
                                 processing={processing}
                                 taxonomy={taxonomy}
+                                rawSource={
+                                    announcement.source_document_key !== null
+                                }
                                 onSubmit={submitApproval}
                             />
                         )}

@@ -36,6 +36,9 @@ test('authenticated verified user can create a saved search from procurement cri
         'organizations' => ['เทศบาลนครขอนแก่น'],
         'methods' => ['e-bidding'],
         'categories' => ['construction'],
+        'noticeTypes' => ['award'],
+        'provinces' => ['ขอนแก่น'],
+        'tags' => ['ก่อสร้าง'],
         'sortBy' => 'deadline',
     ];
 
@@ -53,6 +56,9 @@ test('authenticated verified user can create a saved search from procurement cri
         ->assertJsonPath('criteria.organizations.0', 'เทศบาลนครขอนแก่น')
         ->assertJsonPath('criteria.methods.0', 'e-bidding')
         ->assertJsonPath('criteria.categories.0', 'construction')
+        ->assertJsonPath('criteria.noticeTypes.0', 'award')
+        ->assertJsonPath('criteria.provinces.0', 'ขอนแก่น')
+        ->assertJsonPath('criteria.tags.0', 'ก่อสร้าง')
         ->assertJsonPath('criteria.budgetRange.0', 100000)
         ->assertJsonPath('criteria.budgetRange.1', 500000)
         ->assertJsonPath('criteria.sortBy', 'deadline')

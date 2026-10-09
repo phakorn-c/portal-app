@@ -1,12 +1,52 @@
 import {
     fieldLabels,
+    formatCandidateValue,
     MetaItem,
+    type CandidateValue,
     type ReviewExtraction,
 } from '@/components/extraction-review/shared';
 
 type ExtractionResultProps = {
     extraction: ReviewExtraction;
 };
+
+function CandidateEntry({
+    field,
+    value,
+}: {
+    field: string;
+    value: CandidateValue;
+}) {
+    if (
+        field === 'source_values' &&
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+    ) {
+        return (
+            <div className="md:col-span-2">
+                <details className="rounded-md border border-border">
+                    <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-foreground">
+                        {fieldLabels[field] ?? field}
+                    </summary>
+                    <pre
+                        className="overflow-x-auto border-t border-border bg-muted p-3 text-xs whitespace-pre-wrap text-muted-foreground"
+                        data-test="extraction-source-values"
+                    >
+                        {JSON.stringify(value, null, 2)}
+                    </pre>
+                </details>
+            </div>
+        );
+    }
+
+    return (
+        <MetaItem
+            label={fieldLabels[field] ?? field}
+            value={formatCandidateValue(value)}
+        />
+    );
+}
 
 export function ExtractionResult({ extraction }: ExtractionResultProps) {
     const confidenceEntries = Object.entries(extraction.confidence ?? {});
@@ -29,10 +69,10 @@ export function ExtractionResult({ extraction }: ExtractionResultProps) {
                 >
                     {Object.entries(extraction.candidate).map(
                         ([key, value]) => (
-                            <MetaItem
+                            <CandidateEntry
                                 key={key}
-                                label={fieldLabels[key] ?? key}
-                                value={String(value ?? '-')}
+                                field={key}
+                                value={value}
                             />
                         ),
                     )}

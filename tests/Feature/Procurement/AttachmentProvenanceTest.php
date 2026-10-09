@@ -31,15 +31,14 @@ test('multiple attachments may keep a null sha256 for legacy rows', function () 
     expect(AnnouncementAttachment::query()->whereNull('sha256')->count())->toBe(3);
 });
 
-test('duplicate non-null sha256 is rejected by the unique index', function () {
+test('distinct source documents may share identical PDF bytes', function () {
     $sha = hash('sha256', 'demo-pdf-bytes');
 
-    AnnouncementAttachment::factory()->create(['sha256' => $sha]);
+    $first = AnnouncementAttachment::factory()->create(['sha256' => $sha]);
+    $second = AnnouncementAttachment::factory()->create(['sha256' => $sha]);
 
-    expect(fn () => AnnouncementAttachment::factory()->create(['sha256' => $sha]))
-        ->toThrow(QueryException::class);
-
-    expect(AnnouncementAttachment::query()->where('sha256', $sha)->count())->toBe(1);
+    expect($first->announcement_id)->not->toBe($second->announcement_id)
+        ->and(AnnouncementAttachment::query()->where('sha256', $sha)->count())->toBe(2);
 });
 
 test('announcements expose nullable provenance source fields with an indexed reference', function () {

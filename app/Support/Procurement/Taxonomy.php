@@ -24,6 +24,7 @@ class Taxonomy
         'goods' => 'ซื้อ',
         'services' => 'จ้างทำของ/จ้างเหมาบริการ',
         'consulting' => 'จ้างที่ปรึกษา',
+        'other' => 'อื่น ๆ',
     ];
 
     public static function organizations(): array

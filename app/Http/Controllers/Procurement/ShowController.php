@@ -14,7 +14,7 @@ class ShowController extends Controller
 {
     public function show(Request $request, Announcement $announcement): Response
     {
-        if ($announcement->publication_status !== 'published') {
+        if (! Announcement::query()->visible()->whereKey($announcement->id)->exists()) {
             abort(404);
         }
 
@@ -50,6 +50,7 @@ class ShowController extends Controller
                 'category' => $announcement->category,
                 'method' => $announcement->method,
                 'budget' => $announcement->budget,
+                'reference_price' => $announcement->reference_price,
                 'deadline' => $announcement->deadline,
                 'status' => $announcement->status,
                 'description' => $announcement->description,
@@ -58,6 +59,28 @@ class ShowController extends Controller
                 'contact_phone' => $announcement->contact_phone,
                 'publication_status' => $announcement->publication_status,
                 'published_at' => $announcement->published_at,
+                'project_key' => $announcement->project_key,
+                'project_no' => $announcement->project_no,
+                'notice_type' => $announcement->notice_type,
+                'procurement_category' => $announcement->procurement_category,
+                'tags' => $announcement->tags,
+                'display_price' => $announcement->display_price,
+                'display_price_source' => $announcement->display_price_source,
+                'province' => $announcement->province,
+                'district' => $announcement->district,
+                'subdistrict' => $announcement->subdistrict,
+                'location_source' => $announcement->location_source,
+                'contact_website' => $announcement->contact_website,
+                'announcer_name' => $announcement->announcer_name,
+                'announcer_position' => $announcement->announcer_position,
+                'winner_name' => $announcement->notice_type === 'award' ? $announcement->winner_name : null,
+                'winning_price' => $announcement->notice_type === 'award' ? $announcement->winning_price : null,
+                'bidders' => $announcement->notice_type === 'award' ? $announcement->bidders : null,
+                'announced_at' => $announcement->announced_at,
+                'submission_deadline' => $announcement->submission_deadline,
+                'award_announced_at' => $announcement->award_announced_at,
+                'process_status' => $announcement->process_status,
+                'source_id' => $announcement->source_id,
                 ...($showsSourceAttribution ? [
                     'source_url' => $sourceUrl,
                     'source_reference' => $announcement->source_reference,
@@ -65,6 +88,7 @@ class ShowController extends Controller
                 'attachments' => $announcement->attachments->map(fn ($attachment): array => [
                     'id' => $attachment->id,
                     'filename' => $attachment->filename,
+                    'mime_type' => $attachment->mime_type,
                     'url' => route('procurement.pdf', [
                         'announcement' => $announcement->id,
                         'attachment' => $attachment->id,

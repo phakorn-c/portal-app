@@ -21,7 +21,7 @@ class PdfController extends Controller
         return response()->stream(function () use ($attachment): void {
             $this->streamAttachment($attachment);
         }, 200, [
-            'Content-Type' => 'application/pdf',
+            'Content-Type' => $attachment->mime_type,
             'Content-Disposition' => $this->contentDisposition('inline', $attachment->filename),
         ]);
     }
@@ -33,14 +33,14 @@ class PdfController extends Controller
         return response()->stream(function () use ($attachment): void {
             $this->streamAttachment($attachment);
         }, 200, [
-            'Content-Type' => 'application/pdf',
+            'Content-Type' => $attachment->mime_type,
             'Content-Disposition' => $this->contentDisposition('attachment', $attachment->filename),
         ]);
     }
 
     private function assertCanAccessAttachment(Request $request, Announcement $announcement, AnnouncementAttachment $attachment): void
     {
-        if ($announcement->publication_status !== 'published') {
+        if (! Announcement::query()->visible()->whereKey($announcement->id)->exists()) {
             abort(404);
         }
 

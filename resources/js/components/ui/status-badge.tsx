@@ -3,6 +3,8 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+type AnnouncementStatus = 'open' | 'urgent' | 'closing' | 'closed';
+
 const statusBadgeVariants = cva(
     'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
     {
@@ -13,6 +15,8 @@ const statusBadgeVariants = cva(
                 closing:
                     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
                 closed: 'bg-muted text-muted-foreground',
+                unknown:
+                    'border border-border bg-background text-muted-foreground',
             },
         },
         defaultVariants: {
@@ -26,6 +30,7 @@ const dotVariants: Record<string, string> = {
     urgent: 'bg-amber-500 motion-safe:animate-pulse',
     closing: 'bg-amber-500 motion-safe:animate-pulse',
     closed: 'bg-muted-foreground',
+    unknown: 'bg-border',
 };
 
 const announcementStatusLabels = {
@@ -33,12 +38,13 @@ const announcementStatusLabels = {
     urgent: 'เร่งด่วน',
     closing: 'ใกล้ปิดรับ',
     closed: 'ปิดรับแล้ว',
+    unknown: 'ไม่ทราบสถานะ',
 } as const;
 
 export interface StatusBadgeProps
     extends React.HTMLAttributes<HTMLSpanElement>,
         VariantProps<typeof statusBadgeVariants> {
-    status: 'open' | 'urgent' | 'closing' | 'closed';
+    status: AnnouncementStatus | null;
     showDot?: boolean;
 }
 
@@ -49,19 +55,26 @@ function StatusBadge({
     children,
     ...props
 }: StatusBadgeProps) {
+    const variant = status ?? 'unknown';
+
     return (
         <span
-            className={cn(statusBadgeVariants({ status }), className)}
+            className={cn(statusBadgeVariants({ status: variant }), className)}
             {...props}
         >
             {showDot && (
                 <span
-                    className={cn('h-1.5 w-1.5 rounded-full', dotVariants[status])}
+                    className={cn('h-1.5 w-1.5 rounded-full', dotVariants[variant])}
                 />
             )}
-            {children || announcementStatusLabels[status]}
+            {children || announcementStatusLabels[variant]}
         </span>
     );
 }
 
-export { announcementStatusLabels, StatusBadge, statusBadgeVariants };
+export {
+    type AnnouncementStatus,
+    announcementStatusLabels,
+    StatusBadge,
+    statusBadgeVariants,
+};

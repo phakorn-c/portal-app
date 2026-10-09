@@ -20,7 +20,7 @@ class DashboardTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        $announcement = Announcement::factory()->create(['title' => 'Test Announcement']);
+        $announcement = Announcement::factory()->published()->create(['title' => 'Test Announcement']);
         ListingHistory::create([
             'user_id' => $user->id,
             'announcement_id' => $announcement->id,

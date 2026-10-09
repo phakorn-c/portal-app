@@ -52,6 +52,11 @@ class AnnouncementController extends Controller
         $data = $this->normalizePublicationData($request->safe()->except('attachment'));
         $file = $request->file('attachment');
 
+        if ($announcement->source_document_key !== null && $data['publication_status'] === 'published'
+            && ! $announcement->attachments()->whereHas('extraction', fn ($query) => $query->where('status', 'approved'))->exists()) {
+            throw ValidationException::withMessages(['publication_status' => 'Review and approve the imported document before publishing.']);
+        }
+
         if ($file instanceof UploadedFile) {
             try {
                 $attachmentStorage->store($announcement, $file, $data);
@@ -75,6 +80,11 @@ class AnnouncementController extends Controller
 
     public function publish(Announcement $announcement): RedirectResponse
     {
+        if ($announcement->source_document_key !== null
+            && ! $announcement->attachments()->whereHas('extraction', fn ($query) => $query->where('status', 'approved'))->exists()) {
+            throw ValidationException::withMessages(['publication_status' => 'Review and approve the imported document before publishing.']);
+        }
+
         $isAlreadyPublished = $announcement->publication_status === 'published' && $announcement->published_at !== null;
 
         if ($isAlreadyPublished) {

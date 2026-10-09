@@ -23,6 +23,7 @@ class DashboardController extends Controller
             ->get();
 
         $listingHistory = ListingHistory::where('user_id', $user->id)
+            ->whereHas('announcement', fn ($query) => $query->visible())
             ->with('announcement')
             ->latest('viewed_at')
             ->take(5)

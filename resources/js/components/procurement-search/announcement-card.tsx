@@ -1,20 +1,39 @@
 import { Link } from '@inertiajs/react';
-import { Building2, CalendarDays, ChevronRight, Gavel } from 'lucide-react';
+import {
+    Building2,
+    CalendarDays,
+    ChevronRight,
+    Gavel,
+    MapPin,
+} from 'lucide-react';
 import { ProcurementMethodLabel } from '@/components/procurement-method-label';
 import type { SearchTaxonomy } from '@/components/procurement-search/search-filters';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { formatThaiBudget, formatThaiDate } from '@/lib/procurement-format';
+import {
+    type AnnouncementStatus,
+    StatusBadge,
+} from '@/components/ui/status-badge';
+import {
+    displayPriceLabel,
+    formatThaiBudget,
+    formatThaiDate,
+    verifiedDisplayPrice,
+} from '@/lib/procurement-format';
 
 export type SearchAnnouncement = {
     id: number;
     title: string;
     organization: string;
-    category: string;
     method: string;
-    budget: number | string;
-    deadline: string;
-    status: 'open' | 'urgent' | 'closing' | 'closed';
+    budget: number | string | null;
+    deadline: string | null;
+    status: AnnouncementStatus | null;
+    notice_type: string;
+    procurement_category: string | null;
+    display_price: number | string | null;
+    display_price_source: string | null;
+    province: string | null;
 };
 
 export function AnnouncementCard({
@@ -24,6 +43,13 @@ export function AnnouncementCard({
     announcement: SearchAnnouncement;
     methodLabels: SearchTaxonomy['methodLabels'];
 }) {
+    const isAward = announcement.notice_type === 'award';
+    const isResult = isAward || announcement.status === 'closed';
+    const price = verifiedDisplayPrice(
+        announcement.display_price,
+        announcement.display_price_source,
+    );
+
     return (
         <article
             className={`group min-w-0 rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-md ${
@@ -34,7 +60,12 @@ export function AnnouncementCard({
         >
             <div className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-4">
-                    <StatusBadge status={announcement.status} />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={announcement.status} />
+                        {isAward && (
+                            <Badge variant="secondary">ประกาศผู้ชนะ</Badge>
+                        )}
+                    </div>
                     <span className="font-mono text-xs text-muted-foreground">
                         ID: {announcement.id}
                     </span>
@@ -62,16 +93,24 @@ export function AnnouncementCard({
                             />
                         </span>
                     </div>
+                    {announcement.province && (
+                        <div className="flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4 text-primary" />
+                            <span>จังหวัด{announcement.province}</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col items-start justify-between gap-4 border-t border-border pt-4 sm:flex-row sm:items-center">
                     <div className="flex w-full flex-wrap items-start gap-x-6 gap-y-4 sm:w-auto">
                         <div>
                             <p className="text-xs text-muted-foreground">
-                                งบประมาณ
+                                {displayPriceLabel(
+                                    announcement.display_price_source,
+                                )}
                             </p>
                             <p className="text-base font-bold text-primary tabular-nums">
-                                {formatThaiBudget(announcement.budget)}
+                                {formatThaiBudget(price ?? announcement.budget)}
                             </p>
                         </div>
                         <div>
@@ -86,19 +125,13 @@ export function AnnouncementCard({
                     </div>
                     <Button
                         asChild
-                        variant={
-                            announcement.status === 'closed'
-                                ? 'outline'
-                                : 'secondary'
-                        }
+                        variant={isResult ? 'outline' : 'secondary'}
                         className="w-full gap-2 transition-all hover:bg-primary hover:text-primary-foreground sm:w-auto"
                     >
                         <Link
                             href={`/procurement/announcements/${announcement.id}`}
                         >
-                            {announcement.status === 'closed'
-                                ? 'ดูผลการจัดซื้อ'
-                                : 'ดูรายละเอียด'}
+                            {isResult ? 'ดูผลการจัดซื้อ' : 'ดูรายละเอียด'}
                             <ChevronRight className="h-4 w-4" />
                         </Link>
                     </Button>
