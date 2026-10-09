@@ -159,6 +159,47 @@ test('saved OCR facets notify only the matching notice province and tag', functi
     Notification::assertNotSentTo($otherUser, NewMatchingAnnouncement::class);
 });
 
+test('open purchase alert matches a sourced invitation but not an award', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    NotificationPreference::factory()->for($user)->create([
+        'website_enabled' => true,
+        'email_enabled' => false,
+    ]);
+    SavedSearch::factory()->for($user)->create([
+        'criteria' => [
+            ...FilterState::defaults(),
+            'purchaseTypes' => ['purchase'],
+            'openProposals' => true,
+            'budgetRange' => [200000, 300000],
+        ],
+        'alert_enabled' => true,
+        'last_notified_at' => null,
+    ]);
+
+    $award = Announcement::factory()->published()->create([
+        'notice_type' => 'award',
+        'procurement_category' => 'supply',
+        'deadline' => now()->addDays(7)->toDateString(),
+        'budget' => 250000,
+    ]);
+    EvaluateSavedSearchAlerts::dispatchSync($award);
+    Notification::assertNothingSent();
+
+    $invitation = Announcement::factory()->published()->create([
+        'notice_type' => 'invitation',
+        'procurement_category' => 'supply',
+        'deadline' => now()->addDays(7)->toDateString(),
+        'status' => 'open',
+        'budget' => 900000,
+        'display_price' => 250000,
+        'display_price_source' => 'reference_price',
+    ]);
+    EvaluateSavedSearchAlerts::dispatchSync($invitation);
+    Notification::assertSentTo($user, NewMatchingAnnouncement::class);
+});
+
 test('does not create notification when alert_enabled is false', function () {
     Notification::fake();
 

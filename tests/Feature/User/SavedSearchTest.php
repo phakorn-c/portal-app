@@ -37,6 +37,8 @@ test('authenticated verified user can create a saved search from procurement cri
         'methods' => ['e-bidding'],
         'categories' => ['construction'],
         'noticeTypes' => ['award'],
+        'purchaseTypes' => ['hire'],
+        'openProposals' => true,
         'provinces' => ['ขอนแก่น'],
         'tags' => ['ก่อสร้าง'],
         'sortBy' => 'deadline',
@@ -57,6 +59,8 @@ test('authenticated verified user can create a saved search from procurement cri
         ->assertJsonPath('criteria.methods.0', 'e-bidding')
         ->assertJsonPath('criteria.categories.0', 'construction')
         ->assertJsonPath('criteria.noticeTypes.0', 'award')
+        ->assertJsonPath('criteria.purchaseTypes.0', 'hire')
+        ->assertJsonPath('criteria.openProposals', true)
         ->assertJsonPath('criteria.provinces.0', 'ขอนแก่น')
         ->assertJsonPath('criteria.tags.0', 'ก่อสร้าง')
         ->assertJsonPath('criteria.budgetRange.0', 100000)
@@ -73,6 +77,11 @@ test('authenticated verified user can create a saved search from procurement cri
     $savedSearch = SavedSearch::query()->where('user_id', $user->id)->firstOrFail();
 
     expect($savedSearch->criteria)->toBe($criteria);
+
+    postJson(route('user.saved-searches.run', $savedSearch))
+        ->assertOk()
+        ->assertJsonPath('criteria.purchaseTypes.0', 'hire')
+        ->assertJsonPath('criteria.openProposals', true);
 });
 
 test('authenticated verified user can list their saved searches', function () {

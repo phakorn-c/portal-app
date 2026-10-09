@@ -43,6 +43,36 @@ class AnnouncementSearch
             $query->whereIn('notice_type', $noticeTypes);
         }
 
+        $purchaseTypes = array_values($criteria['purchaseTypes'] ?? []);
+        if ($purchaseTypes !== []) {
+            $categories = [
+                ...(in_array('purchase', $purchaseTypes, true) ? ['supply'] : []),
+                ...(in_array('hire', $purchaseTypes, true) ? ['works', 'service', 'consulting'] : []),
+            ];
+            $legacyCategories = [
+                ...(in_array('purchase', $purchaseTypes, true) ? ['goods'] : []),
+                ...(in_array('hire', $purchaseTypes, true) ? ['construction', 'services', 'consulting'] : []),
+            ];
+            $query->where(function (Builder $builder) use ($categories, $legacyCategories): void {
+                $builder->whereIn('procurement_category', $categories)
+                    ->orWhere(function (Builder $legacy) use ($legacyCategories): void {
+                        $legacy->whereNull('procurement_category')
+                            ->whereIn('category', $legacyCategories);
+                    });
+            });
+        }
+
+        if ($criteria['openProposals'] ?? false) {
+            $query->where('notice_type', 'invitation')
+                ->where(function (Builder $builder): void {
+                    $builder->whereNull('status')->orWhere('status', '!=', 'closed');
+                })
+                ->where(function (Builder $builder): void {
+                    $builder->whereNull('process_status')->orWhere('process_status', '!=', 'award_announced');
+                })
+                ->whereRaw('DATE(COALESCE(submission_deadline, deadline)) > ?', [now()->toDateString()]);
+        }
+
         $provinces = array_values($criteria['provinces'] ?? []);
         if ($provinces !== []) {
             $query->whereIn('province', $provinces);
@@ -52,14 +82,15 @@ class AnnouncementSearch
             $query->whereJsonContains('tags', $tag);
         }
 
+        $price = $this->displayedPriceSql();
         $budgetRange = $criteria['budgetRange'] ?? [0, null];
         $budgetMin = (float) ($budgetRange[0] ?? 0);
         $budgetMax = $budgetRange[1] ?? null;
         if ($budgetMin > 0) {
-            $query->where('budget', '>=', $budgetMin);
+            $query->whereRaw("{$price} >= ?", [$budgetMin]);
         }
         if ($budgetMax !== null) {
-            $query->where('budget', '<=', (float) $budgetMax);
+            $query->whereRaw("{$price} <= ?", [(float) $budgetMax]);
         }
 
         $sortBy = (string) ($criteria['sortBy'] ?? 'latest');
@@ -70,11 +101,18 @@ class AnnouncementSearch
 
     private function applySort(Builder $query, string $sortBy): void
     {
+        $price = $this->displayedPriceSql();
+
         match ($sortBy) {
             'deadline_asc', 'deadline' => $query->orderByRaw('deadline IS NULL')->orderBy('deadline'),
-            'budget_asc', 'budget-low' => $query->orderByRaw('budget IS NULL')->orderBy('budget'),
-            'budget_desc', 'budget-high' => $query->orderByRaw('budget IS NULL')->orderByDesc('budget'),
+            'budget_asc', 'budget-low' => $query->orderByRaw("{$price} IS NULL")->orderByRaw("{$price} ASC"),
+            'budget_desc', 'budget-high' => $query->orderByRaw("{$price} IS NULL")->orderByRaw("{$price} DESC"),
             default => $query->orderByDesc('created_at'),
         };
+    }
+
+    private function displayedPriceSql(): string
+    {
+        return "CAST(CASE WHEN display_price_source IN ('reference_price', 'budget', 'winning_price') AND display_price IS NOT NULL THEN display_price ELSE budget END AS DECIMAL(15, 2))";
     }
 }

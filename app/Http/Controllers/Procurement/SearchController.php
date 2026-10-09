@@ -59,6 +59,8 @@ class SearchController extends Controller
             'methods' => $this->arrayFromQuery($request->query('method', [])),
             'categories' => $this->arrayFromQuery($request->query('category', [])),
             'noticeTypes' => $this->arrayFromQuery($request->query('notice_type', [])),
+            'purchaseTypes' => $this->arrayFromQuery($request->query('purchase_type', [])),
+            'openProposals' => $request->boolean('open_proposals'),
             'provinces' => $this->arrayFromQuery($request->query('province', [])),
             'tags' => $this->arrayFromQuery($request->query('tag', [])),
             'budgetRange' => [
