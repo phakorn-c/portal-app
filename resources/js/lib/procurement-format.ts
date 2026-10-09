@@ -78,7 +78,11 @@ export function verifiedDisplayPrice(
         return null;
     }
 
-    if (!source || source === 'none') {
+    if (
+        source !== 'reference_price' &&
+        source !== 'budget' &&
+        source !== 'winning_price'
+    ) {
         return null;
     }
 

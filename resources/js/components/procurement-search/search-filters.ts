@@ -16,6 +16,8 @@ export type SearchTaxonomy = {
 
 export type SearchCriteria = FilterState & {
     noticeTypes: string[];
+    purchaseTypes: string[];
+    openProposals: boolean;
     provinces: string[];
     tags: string[];
 };
@@ -49,6 +51,10 @@ export function useSearchFilters(
     const [selectedNoticeTypes, setSelectedNoticeTypes] = useState<string[]>(
         filters.noticeTypes,
     );
+    const [selectedPurchaseTypes, setSelectedPurchaseTypes] = useState<
+        string[]
+    >(filters.purchaseTypes);
+    const [openProposals, setOpenProposals] = useState(filters.openProposals);
     const [selectedProvinces, setSelectedProvinces] = useState<string[]>(
         filters.provinces,
     );
@@ -61,6 +67,8 @@ export function useSearchFilters(
         methods: selectedMethods,
         categories: selectedCategories,
         noticeTypes: selectedNoticeTypes,
+        purchaseTypes: selectedPurchaseTypes,
+        openProposals,
         provinces: selectedProvinces,
         tags: selectedTags,
         sortBy,
@@ -73,6 +81,8 @@ export function useSearchFilters(
             method: next.methods,
             category: next.categories,
             notice_type: next.noticeTypes,
+            purchase_type: next.purchaseTypes,
+            open_proposals: next.openProposals ? 1 : 0,
             province: next.provinces,
             tag: next.tags,
             budget_min: next.budgetRange[0],
@@ -85,6 +95,7 @@ export function useSearchFilters(
 
         router.get('/procurement', params, {
             preserveScroll: true,
+            preserveState: true,
             replace: true,
         });
         onSubmit();
@@ -130,6 +141,14 @@ export function useSearchFilters(
                     key: 'noticeTypes',
                 },
                 {
+                    values: selectedPurchaseTypes,
+                    options: [
+                        { value: 'purchase', label: 'ซื้อ' },
+                        { value: 'hire', label: 'จ้าง' },
+                    ],
+                    key: 'purchaseTypes',
+                },
+                {
                     values: selectedProvinces,
                     options: taxonomy.provinces,
                     key: 'provinces',
@@ -145,6 +164,7 @@ export function useSearchFilters(
                 onRemove: () => {
                     const next = values.filter((item) => item !== value);
                     if (key === 'noticeTypes') setSelectedNoticeTypes(next);
+                    if (key === 'purchaseTypes') setSelectedPurchaseTypes(next);
                     if (key === 'provinces') setSelectedProvinces(next);
                     if (key === 'tags') setSelectedTags(next);
                     submitFilters({ ...criteria, [key]: next });
@@ -152,6 +172,17 @@ export function useSearchFilters(
             })),
         ),
     ];
+
+    if (openProposals) {
+        activeFilters.push({
+            label: 'ยังรับข้อเสนอ',
+            value: 'openProposals',
+            onRemove: () => {
+                setOpenProposals(false);
+                submitFilters({ ...criteria, openProposals: false });
+            },
+        });
+    }
 
     const hasActiveFilters =
         activeFilters.length > 0 ||
@@ -167,6 +198,8 @@ export function useSearchFilters(
             methods: [],
             categories: [],
             noticeTypes: [],
+            purchaseTypes: [],
+            openProposals: false,
             provinces: [],
             tags: [],
             sortBy: 'latest',
@@ -178,6 +211,8 @@ export function useSearchFilters(
         setSelectedMethods(next.methods);
         setSelectedCategories(next.categories);
         setSelectedNoticeTypes(next.noticeTypes);
+        setSelectedPurchaseTypes(next.purchaseTypes);
+        setOpenProposals(next.openProposals);
         setSelectedProvinces(next.provinces);
         setSelectedTags(next.tags);
         setSortBy(next.sortBy);
@@ -193,6 +228,7 @@ export function useSearchFilters(
             | 'methods'
             | 'categories'
             | 'noticeTypes'
+            | 'purchaseTypes'
             | 'provinces'
             | 'tags',
     ) => {
@@ -219,6 +255,10 @@ export function useSearchFilters(
         setSelectedCategories,
         selectedNoticeTypes,
         setSelectedNoticeTypes,
+        selectedPurchaseTypes,
+        setSelectedPurchaseTypes,
+        openProposals,
+        setOpenProposals,
         selectedProvinces,
         setSelectedProvinces,
         selectedTags,

@@ -89,5 +89,7 @@ export interface FilterState {
     organizations: string[];
     methods: string[];
     categories: string[];
+    purchaseTypes: string[];
+    openProposals: boolean;
     sortBy: 'latest' | 'budget-high' | 'budget-low' | 'deadline';
 }

@@ -105,9 +105,13 @@ export function AnnouncementCard({
                     <div className="flex w-full flex-wrap items-start gap-x-6 gap-y-4 sm:w-auto">
                         <div>
                             <p className="text-xs text-muted-foreground">
-                                {displayPriceLabel(
-                                    announcement.display_price_source,
-                                )}
+                                {price === null && announcement.budget === null
+                                    ? 'ไม่มีข้อมูลราคา'
+                                    : displayPriceLabel(
+                                          price === null
+                                              ? 'budget'
+                                              : announcement.display_price_source,
+                                      )}
                             </p>
                             <p className="text-base font-bold text-primary tabular-nums">
                                 {formatThaiBudget(price ?? announcement.budget)}
@@ -126,7 +130,7 @@ export function AnnouncementCard({
                     <Button
                         asChild
                         variant={isResult ? 'outline' : 'secondary'}
-                        className="w-full gap-2 transition-all hover:bg-primary hover:text-primary-foreground sm:w-auto"
+                        className="min-h-11 w-full gap-2 transition-all hover:bg-primary hover:text-primary-foreground sm:w-auto"
                     >
                         <Link
                             href={`/procurement/announcements/${announcement.id}`}

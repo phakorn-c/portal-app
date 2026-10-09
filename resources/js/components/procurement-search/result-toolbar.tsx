@@ -57,7 +57,7 @@ export function ResultToolbar({
                                 type="button"
                                 aria-label={`ลบตัวกรอง ${filter.label}`}
                                 onClick={filter.onRemove}
-                                className="rounded-full hover:bg-primary/20"
+                                className="flex size-11 items-center justify-center rounded-full hover:bg-primary/20 sm:size-6"
                             >
                                 <X className="h-3 w-3" />
                             </button>
@@ -100,30 +100,41 @@ export function ResultToolbar({
                         บันทึกการค้นหานี้
                     </Button>
                 )}
-                <Select
-                    value={sortBy}
-                    onValueChange={(value) => {
-                        const next = value as FilterState['sortBy'];
-                        setSortBy(next);
-                        submitFilters({ ...criteria, sortBy: next });
-                    }}
-                >
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="เรียงตาม" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="latest">ใหม่ล่าสุด</SelectItem>
-                        <SelectItem value="deadline">
-                            กำหนดส่งใกล้สุด
-                        </SelectItem>
-                        <SelectItem value="budget-high">
-                            งบประมาณสูงสุด
-                        </SelectItem>
-                        <SelectItem value="budget-low">
-                            งบประมาณต่ำสุด
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
+                <div className="space-y-1">
+                    <label
+                        htmlFor="search-sort"
+                        className="text-sm text-muted-foreground"
+                    >
+                        เรียงตาม
+                    </label>
+                    <Select
+                        value={sortBy}
+                        onValueChange={(value) => {
+                            const next = value as FilterState['sortBy'];
+                            setSortBy(next);
+                            submitFilters({ ...criteria, sortBy: next });
+                        }}
+                    >
+                        <SelectTrigger
+                            id="search-sort"
+                            className="min-h-11 w-[200px]"
+                        >
+                            <SelectValue placeholder="เรียงตาม" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="latest">ใหม่ล่าสุด</SelectItem>
+                            <SelectItem value="deadline">
+                                กำหนดส่งใกล้สุด
+                            </SelectItem>
+                            <SelectItem value="budget-high">
+                                ราคาที่แสดงสูงสุด
+                            </SelectItem>
+                            <SelectItem value="budget-low">
+                                ราคาที่แสดงต่ำสุด
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
         </div>
     );

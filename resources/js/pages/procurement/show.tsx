@@ -162,6 +162,16 @@ export default function ProcurementAnnouncement() {
     const projectReference = announcement.project_no || String(announcement.id);
     const deadline = announcement.submission_deadline ?? announcement.deadline;
     const announcedAt = announcement.announced_at ?? announcement.published_at;
+    const verifiedPrice = verifiedDisplayPrice(
+        announcement.display_price,
+        announcement.display_price_source,
+    );
+    const priceSource =
+        verifiedPrice !== null
+            ? announcement.display_price_source
+            : announcement.budget !== null
+              ? 'budget'
+              : 'none';
     const workLocation =
         [
             announcement.subdistrict ? `ตำบล${announcement.subdistrict}` : null,
@@ -302,16 +312,15 @@ export default function ProcurementAnnouncement() {
                                 </p>
                             </DetailCell>
                             <DetailCell
-                                label={displayPriceLabel(
-                                    announcement.display_price_source,
-                                )}
+                                label={
+                                    priceSource === 'none'
+                                        ? 'ไม่มีข้อมูลราคา'
+                                        : displayPriceLabel(priceSource)
+                                }
                             >
                                 <p className="text-sm font-medium text-foreground">
                                     {formatThaiBudget(
-                                        verifiedDisplayPrice(
-                                            announcement.display_price,
-                                            announcement.display_price_source,
-                                        ) ?? announcement.budget,
+                                        verifiedPrice ?? announcement.budget,
                                     )}
                                 </p>
                             </DetailCell>
@@ -327,7 +336,7 @@ export default function ProcurementAnnouncement() {
                                 <p
                                     className={
                                         deadline
-                                            ? 'font-bold text-destructive'
+                                            ? 'font-bold text-destructive dark:text-red-300'
                                             : 'font-medium text-muted-foreground'
                                     }
                                 >
@@ -373,7 +382,10 @@ export default function ProcurementAnnouncement() {
                             <DetailCell label="ราคากลาง">
                                 <p className="font-medium text-foreground">
                                     {formatThaiBudget(
-                                        announcement.reference_price,
+                                        announcement.reference_price ??
+                                            (priceSource === 'reference_price'
+                                                ? verifiedPrice
+                                                : null),
                                     )}
                                 </p>
                             </DetailCell>

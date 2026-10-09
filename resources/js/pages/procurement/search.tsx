@@ -69,35 +69,47 @@ export default function ProcurementSearch() {
                             </p>
                         </div>
                         <div className="flex flex-col gap-3 md:flex-row">
-                            <div className="relative flex-1">
-                                <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-primary/70" />
-                                <Input
-                                    value={search.query}
-                                    onChange={(event) => {
-                                        const nextQuery = event.target.value;
-                                        search.setQuery(nextQuery);
-                                        search.submitFilters({
-                                            ...search.criteria,
-                                            query: nextQuery,
-                                        });
-                                    }}
-                                    placeholder="ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน..."
-                                    className="h-14 rounded-xl border-none bg-card pr-28 pl-12 text-base shadow-md ring-1 ring-border focus-visible:ring-2 focus-visible:ring-primary"
-                                />
-                                <Button
-                                    className="absolute top-2 right-2 h-10 rounded-lg px-6"
-                                    onClick={() =>
-                                        search.submitFilters(search.criteria)
-                                    }
+                            <div className="flex-1">
+                                <label
+                                    htmlFor="procurement-query"
+                                    className="mb-2 block text-sm font-medium text-foreground"
                                 >
-                                    ค้นหา
-                                </Button>
+                                    คำค้นประกาศ
+                                </label>
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-primary/70" />
+                                    <Input
+                                        id="procurement-query"
+                                        value={search.query}
+                                        onChange={(event) => {
+                                            const nextQuery =
+                                                event.target.value;
+                                            search.setQuery(nextQuery);
+                                            search.submitFilters({
+                                                ...search.criteria,
+                                                query: nextQuery,
+                                            });
+                                        }}
+                                        placeholder="ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน..."
+                                        className="h-14 rounded-xl border-none bg-card pr-28 pl-12 text-base shadow-md ring-1 ring-border focus-visible:ring-2 focus-visible:ring-primary"
+                                    />
+                                    <Button
+                                        className="absolute top-1.5 right-1.5 h-11 rounded-lg px-6"
+                                        onClick={() =>
+                                            search.submitFilters(
+                                                search.criteria,
+                                            )
+                                        }
+                                    >
+                                        ค้นหา
+                                    </Button>
+                                </div>
                             </div>
                             {!auth.user && (
                                 <Button
                                     asChild
                                     variant="outline"
-                                    className="h-14 rounded-xl px-6"
+                                    className="h-14 rounded-xl px-6 md:self-end"
                                 >
                                     <Link href="/register">ลงทะเบียน</Link>
                                 </Button>

@@ -30,6 +30,10 @@ export function FilterSidebar({
         setSelectedCategories,
         selectedNoticeTypes,
         setSelectedNoticeTypes,
+        selectedPurchaseTypes,
+        setSelectedPurchaseTypes,
+        openProposals,
+        setOpenProposals,
         selectedProvinces,
         setSelectedProvinces,
         selectedTags,
@@ -63,7 +67,7 @@ export function FilterSidebar({
                 <CardContent className="space-y-8 pt-6">
                     <div className="space-y-4">
                         <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
-                            ช่วงงบประมาณ
+                            ช่วงราคาที่แสดง
                         </h3>
                         <div className="px-1">
                             <Slider
@@ -87,10 +91,7 @@ export function FilterSidebar({
                                 min={0}
                                 max={10000000}
                                 step={100000}
-                                thumbLabels={[
-                                    'งบประมาณต่ำสุด',
-                                    'งบประมาณสูงสุด',
-                                ]}
+                                thumbLabels={['ราคาต่ำสุด', 'ราคาสูงสุด']}
                                 className="w-full"
                             />
                             <div className="mt-3 flex justify-between text-sm text-muted-foreground">
@@ -99,10 +100,17 @@ export function FilterSidebar({
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-2">
                                 <div className="relative">
-                                    <span className="absolute top-2 left-2 text-xs text-muted-foreground">
+                                    <label
+                                        htmlFor="price-minimum"
+                                        className="mb-1 block text-xs text-muted-foreground"
+                                    >
+                                        ราคาต่ำสุด
+                                    </label>
+                                    <span className="absolute bottom-2 left-2 text-xs text-muted-foreground">
                                         ฿
                                     </span>
                                     <Input
+                                        id="price-minimum"
                                         placeholder="ต่ำสุด"
                                         className="h-9 pl-6 text-sm"
                                         value={budgetRange[0]}
@@ -110,10 +118,17 @@ export function FilterSidebar({
                                     />
                                 </div>
                                 <div className="relative">
-                                    <span className="absolute top-2 left-2 text-xs text-muted-foreground">
+                                    <label
+                                        htmlFor="price-maximum"
+                                        className="mb-1 block text-xs text-muted-foreground"
+                                    >
+                                        ราคาสูงสุด
+                                    </label>
+                                    <span className="absolute bottom-2 left-2 text-xs text-muted-foreground">
                                         ฿
                                     </span>
                                     <Input
+                                        id="price-maximum"
                                         placeholder="สูงสุด"
                                         className="h-9 pl-6 text-sm"
                                         value={budgetRange[1] ?? 'ไม่จำกัด'}
@@ -123,6 +138,61 @@ export function FilterSidebar({
                             </div>
                         </div>
                     </div>
+                    <fieldset className="space-y-3">
+                        <legend className="text-sm font-bold tracking-wide text-foreground">
+                            ซื้อหรือจ้าง
+                        </legend>
+                        <div className="space-y-2">
+                            {[
+                                { value: 'purchase', label: 'ซื้อ' },
+                                { value: 'hire', label: 'จ้าง' },
+                            ].map((option) => (
+                                <label
+                                    key={option.value}
+                                    className="flex cursor-pointer items-center gap-3"
+                                >
+                                    <Checkbox
+                                        checked={selectedPurchaseTypes.includes(
+                                            option.value,
+                                        )}
+                                        onCheckedChange={() =>
+                                            toggleFilter(
+                                                option.value,
+                                                selectedPurchaseTypes,
+                                                setSelectedPurchaseTypes,
+                                                'purchaseTypes',
+                                            )
+                                        }
+                                    />
+                                    <span className="text-sm text-muted-foreground">
+                                        {option.label}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
+                    <fieldset className="space-y-2">
+                        <label className="flex cursor-pointer items-center gap-3">
+                            <Checkbox
+                                checked={openProposals}
+                                onCheckedChange={(checked) => {
+                                    const next = checked === true;
+                                    setOpenProposals(next);
+                                    submitFilters({
+                                        ...criteria,
+                                        openProposals: next,
+                                    });
+                                }}
+                            />
+                            <span className="text-sm font-bold text-foreground">
+                                ยังรับข้อเสนอ
+                            </span>
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                            เฉพาะประกาศเชิญชวนที่วันปิดรับยังไม่ถึง
+                            ไม่รวมวันปิดรับเมื่อไม่ทราบเวลาที่แน่นอน
+                        </p>
+                    </fieldset>
                     <div className="space-y-3">
                         <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
                             หน่วยงาน / ภาคส่วน

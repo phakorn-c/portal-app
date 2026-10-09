@@ -149,21 +149,21 @@ test('real imported record renders polished Thai facts on responsive guest pages
         page.getByRole('heading', { name: importedRecord.title }),
     ).toBeVisible();
     await expect(
-        page.getByRole('slider', { name: 'งบประมาณสูงสุด' }),
+        page.getByRole('slider', { name: 'ราคาสูงสุด' }),
     ).toBeVisible();
     await page.goto('/procurement', { waitUntil: 'domcontentloaded' });
-    const minimumBudget = page.getByRole('slider', {
-        name: 'งบประมาณต่ำสุด',
+    const minimumPrice = page.getByRole('slider', {
+        name: 'ราคาต่ำสุด',
     });
-    const maximumBudget = page.getByRole('slider', {
-        name: 'งบประมาณสูงสุด',
+    const maximumPrice = page.getByRole('slider', {
+        name: 'ราคาสูงสุด',
     });
-    await expect(minimumBudget).toBeVisible();
-    await expect(maximumBudget).toBeVisible();
-    await maximumBudget.focus();
-    await maximumBudget.press('ArrowLeft');
+    await expect(minimumPrice).toBeVisible();
+    await expect(maximumPrice).toBeVisible();
+    await maximumPrice.focus();
+    await maximumPrice.press('ArrowLeft');
     await expect(page.getByPlaceholder('สูงสุด')).toHaveValue('9900000');
-    await maximumBudget.press('ArrowRight');
+    await maximumPrice.press('ArrowRight');
     await expect(page.getByPlaceholder('สูงสุด')).toHaveValue('ไม่จำกัด');
 
     await page

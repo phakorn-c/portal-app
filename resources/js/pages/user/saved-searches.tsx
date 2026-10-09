@@ -98,6 +98,7 @@ function serializeCriteria(criteria: Record<string, unknown>): string {
     }
     for (const [field, parameter] of [
         ['noticeTypes', 'notice_type[]'],
+        ['purchaseTypes', 'purchase_type[]'],
         ['provinces', 'province[]'],
         ['tags', 'tag[]'],
     ] as const) {
@@ -107,6 +108,9 @@ function serializeCriteria(criteria: Record<string, unknown>): string {
                 if (typeof value === 'string') params.append(parameter, value);
             });
         }
+    }
+    if (criteria.openProposals === true) {
+        params.set('open_proposals', '1');
     }
     if (
         Array.isArray(criteria.budgetRange) &&
