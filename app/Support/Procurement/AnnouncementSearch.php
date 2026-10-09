@@ -36,10 +36,15 @@ class AnnouncementSearch
             $query->whereIn('category', $categories);
         }
 
-        $budgetRange = $criteria['budgetRange'] ?? [0, 10000000];
+        $budgetRange = $criteria['budgetRange'] ?? [0, null];
         $budgetMin = (float) ($budgetRange[0] ?? 0);
-        $budgetMax = (float) ($budgetRange[1] ?? 10000000);
-        $query->whereBetween('budget', [$budgetMin, $budgetMax]);
+        $budgetMax = $budgetRange[1] ?? null;
+        if ($budgetMin > 0) {
+            $query->where('budget', '>=', $budgetMin);
+        }
+        if ($budgetMax !== null) {
+            $query->where('budget', '<=', (float) $budgetMax);
+        }
 
         $sortBy = (string) ($criteria['sortBy'] ?? 'latest');
         $this->applySort($query, $sortBy);

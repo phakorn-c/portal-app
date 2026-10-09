@@ -85,7 +85,7 @@ export interface PaginationMeta {
 
 export interface FilterState {
     query: string;
-    budgetRange: [number, number];
+    budgetRange: [number, number | null];
     organizations: string[];
     methods: string[];
     categories: string[];

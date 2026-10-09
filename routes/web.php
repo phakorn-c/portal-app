@@ -11,11 +11,8 @@ use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\NotificationPreferenceController;
 use App\Http\Controllers\User\SavedSearchController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('procurement/search');
-})->name('home');
+Route::get('/', [SearchController::class, 'index'])->name('home');
 
 Route::get('dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 

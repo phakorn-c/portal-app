@@ -129,6 +129,13 @@ test('real imported record renders polished Thai facts on responsive guest pages
     page.on('pageerror', (error) => browserErrors.push(error.message));
 
     await page.setViewportSize({ width: 375, height: 900 });
+    await page.goto('/');
+    await expect(
+        page.getByRole('heading', { name: importedRecord.title }),
+    ).toBeVisible();
+    await expect(
+        page.getByRole('slider', { name: 'งบประมาณสูงสุด' }),
+    ).toBeVisible();
     await page.goto('/procurement');
     const minimumBudget = page.getByRole('slider', {
         name: 'งบประมาณต่ำสุด',
@@ -142,7 +149,7 @@ test('real imported record renders polished Thai facts on responsive guest pages
     await maximumBudget.press('ArrowLeft');
     await expect(page.getByPlaceholder('สูงสุด')).toHaveValue('9900000');
     await maximumBudget.press('ArrowRight');
-    await expect(page.getByPlaceholder('สูงสุด')).toHaveValue('10000000');
+    await expect(page.getByPlaceholder('สูงสุด')).toHaveValue('ไม่จำกัด');
 
     await page
         .getByPlaceholder('ค้นหาด้วยคำสำคัญ, เลขที่โครงการ หรือชื่อหน่วยงาน...')

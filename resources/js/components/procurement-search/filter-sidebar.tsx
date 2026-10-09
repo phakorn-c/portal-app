@@ -61,12 +61,17 @@ export function FilterSidebar({
                         </h3>
                         <div className="px-1">
                             <Slider
-                                value={budgetRange}
+                                value={[
+                                    budgetRange[0],
+                                    budgetRange[1] ?? 10000000,
+                                ]}
                                 onValueChange={(value) => {
-                                    const next = [
+                                    const next: [number, number | null] = [
                                         value[0] ?? 0,
-                                        value[1] ?? 10000000,
-                                    ] as [number, number];
+                                        value[1] === 10000000
+                                            ? null
+                                            : (value[1] ?? null),
+                                    ];
                                     setBudgetRange(next);
                                     submitFilters({
                                         ...criteria,
@@ -84,7 +89,7 @@ export function FilterSidebar({
                             />
                             <div className="mt-3 flex justify-between text-sm text-muted-foreground">
                                 <span>0 บาท</span>
-                                <span>10 ล้าน</span>
+                                <span>10 ล้านขึ้นไป: ไม่จำกัด</span>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-2">
                                 <div className="relative">
@@ -105,7 +110,7 @@ export function FilterSidebar({
                                     <Input
                                         placeholder="สูงสุด"
                                         className="h-9 pl-6 text-sm"
-                                        value={budgetRange[1]}
+                                        value={budgetRange[1] ?? 'ไม่จำกัด'}
                                         readOnly
                                     />
                                 </div>

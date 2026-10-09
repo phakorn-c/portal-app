@@ -54,7 +54,7 @@ class SearchController extends Controller
             'categories' => $this->arrayFromQuery($request->query('category', [])),
             'budgetRange' => [
                 (float) $request->query('budget_min', 0),
-                (float) $request->query('budget_max', 10000000),
+                $request->query('budget_max') === null ? null : (float) $request->query('budget_max'),
             ],
             'sortBy' => $this->normalizeSortValue((string) $request->query('sort', 'newest')),
         ];

@@ -10,7 +10,7 @@ class FilterState
     {
         return [
             'query' => '',
-            'budgetRange' => [0.0, 10000000.0],
+            'budgetRange' => [0.0, null],
             'organizations' => [],
             'methods' => [],
             'categories' => [],
@@ -25,7 +25,7 @@ class FilterState
             $prefix.'.query' => ['present', 'nullable', 'string'],
             $prefix.'.budgetRange' => ['required', 'array', 'size:2'],
             $prefix.'.budgetRange.0' => ['required', 'numeric'],
-            $prefix.'.budgetRange.1' => ['required', 'numeric'],
+            $prefix.'.budgetRange.1' => ['present', 'nullable', 'numeric'],
             $prefix.'.organizations' => ['present', 'array'],
             $prefix.'.organizations.*' => [Rule::in(Taxonomy::organizations())],
             $prefix.'.methods' => ['present', 'array'],

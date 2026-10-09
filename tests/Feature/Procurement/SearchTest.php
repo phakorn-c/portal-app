@@ -33,6 +33,49 @@ test('guest search returns published announcements', function () {
     );
 });
 
+test('home renders the complete public procurement search', function () {
+    $response = get(route('home'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('procurement/search')
+        ->where('announcements.total', 3)
+        ->has('announcements.data', 3)
+        ->where('pagination.total', 3)
+        ->where('filters.budgetRange', [0, null])
+        ->where('filters.organizations', [])
+        ->where('filters.methods', [])
+        ->where('filters.categories', [])
+        ->where('taxonomy.organizations', Taxonomy::organizationOptions())
+        ->where('taxonomy.methods', Taxonomy::methodOptions())
+        ->where('taxonomy.categories', Taxonomy::categoryOptions())
+    );
+});
+
+test('default search includes published announcements above ten million but explicit maximum limits results', function () {
+    Announcement::factory()->published()->create(['budget' => 12000000]);
+
+    foreach (['home', 'procurement.search'] as $route) {
+        get(route($route))->assertInertia(fn (Assert $page) => $page
+            ->where('announcements.total', 4)
+            ->where('filters.budgetRange', [0, null])
+            ->has('announcements.data', 4)
+        );
+
+        get(route($route, ['budget_max' => 10000000]))->assertInertia(fn (Assert $page) => $page
+            ->where('announcements.total', 3)
+            ->where('filters.budgetRange', [0, 10000000])
+            ->missing('announcements.data.3')
+        );
+
+        get(route($route, ['budget_min' => 11000000, 'budget_max' => 13000000]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('announcements.total', 1)
+                ->where('filters.budgetRange', [11000000, 13000000])
+            );
+    }
+});
+
 test('keyword filter returns only matching announcements', function () {
     $response = get(route('procurement.search', ['query' => 'clinic renovation']));
 
@@ -179,7 +222,6 @@ test('authenticated user search with empty criteria does not create history', fu
     get(route('procurement.search', [
         'query' => '',
         'budget_min' => FilterState::defaults()['budgetRange'][0],
-        'budget_max' => FilterState::defaults()['budgetRange'][1],
         'sort' => 'newest',
     ]))->assertOk();
 

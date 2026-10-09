@@ -86,6 +86,7 @@ test('matching saved search creates notification', function () {
         'organization' => 'เทศบาลนครขอนแก่น',
         'category' => 'construction',
         'method' => 'e-bidding',
+        'budget' => 12000000,
         'published_at' => now(),
     ]);
 

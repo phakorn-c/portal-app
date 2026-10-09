@@ -117,7 +117,9 @@ function describeCriteria(criteria: FilterState): string {
     }
 
     parts.push(
-        `งบประมาณ: ${criteria.budgetRange[0]} - ${criteria.budgetRange[1]} บาท`,
+        criteria.budgetRange[1] === null
+            ? `งบประมาณ: ${criteria.budgetRange[0]} บาทขึ้นไป`
+            : `งบประมาณ: ${criteria.budgetRange[0]} - ${criteria.budgetRange[1]} บาท`,
     );
 
     return parts.join(' | ');

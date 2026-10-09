@@ -24,7 +24,7 @@ export function useSearchFilters(
     onSubmit: () => void,
 ) {
     const [query, setQuery] = useState(filters.query);
-    const [budgetRange, setBudgetRange] = useState<[number, number]>(
+    const [budgetRange, setBudgetRange] = useState<[number, number | null]>(
         filters.budgetRange,
     );
     const [sortBy, setSortBy] = useState<FilterState['sortBy']>(filters.sortBy);
@@ -63,7 +63,9 @@ export function useSearchFilters(
             method: next.methods,
             category: next.categories,
             budget_min: next.budgetRange[0],
-            budget_max: next.budgetRange[1],
+            ...(next.budgetRange[1] === null
+                ? {}
+                : { budget_max: next.budgetRange[1] }),
             sort: querySort[next.sortBy],
             page,
         };
@@ -114,12 +116,12 @@ export function useSearchFilters(
         activeFilters.length > 0 ||
         query.trim() !== '' ||
         budgetRange[0] !== 0 ||
-        budgetRange[1] !== 10000000;
+        budgetRange[1] !== null;
 
     const clearAllFilters = () => {
         const next: FilterState = {
             query: '',
-            budgetRange: [0, 10000000],
+            budgetRange: [0, null],
             organizations: [],
             methods: [],
             categories: [],
