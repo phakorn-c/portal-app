@@ -70,7 +70,7 @@ class AnnouncementSearch
                 ->where(function (Builder $builder): void {
                     $builder->whereNull('process_status')->orWhere('process_status', '!=', 'award_announced');
                 })
-                ->whereRaw('DATE(COALESCE(submission_deadline, deadline)) > ?', [now()->toDateString()]);
+                ->whereRaw('DATE(COALESCE(submission_deadline, deadline)) > ?', [now('Asia/Bangkok')->toDateString()]);
         }
 
         $provinces = array_values($criteria['provinces'] ?? []);

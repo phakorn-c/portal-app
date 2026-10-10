@@ -187,6 +187,30 @@ test('open proposals require an invitation with a deadline after today and no cl
     }
 });
 
+test('open proposals exclude a deadline on the current Bangkok date', function () {
+    \Illuminate\Support\Facades\Date::setTestNow('2026-10-09 18:00:00 UTC');
+
+    try {
+        Announcement::factory()->published()->create([
+            'notice_type' => 'invitation',
+            'submission_deadline' => '2026-10-10',
+            'status' => 'open',
+        ]);
+        $tomorrow = Announcement::factory()->published()->create([
+            'notice_type' => 'invitation',
+            'submission_deadline' => '2026-10-11',
+            'status' => 'open',
+        ]);
+
+        get(route('procurement.search', ['open_proposals' => '1']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('announcements.total', 1)
+                ->where('announcements.data.0.id', $tomorrow->id));
+    } finally {
+        \Illuminate\Support\Facades\Date::setTestNow();
+    }
+});
+
 test('price range and ordering use sourced display price rather than budget', function () {
     $low = Announcement::factory()->published()->create([
         'budget' => 900000,
