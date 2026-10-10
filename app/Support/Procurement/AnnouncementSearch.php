@@ -45,13 +45,15 @@ class AnnouncementSearch
 
         $purchaseTypes = array_values($criteria['purchaseTypes'] ?? []);
         if ($purchaseTypes !== []) {
+            $isPurchase = in_array('purchase', $purchaseTypes, true);
+            $isHire = in_array('hire', $purchaseTypes, true);
             $categories = [
-                ...(in_array('purchase', $purchaseTypes, true) ? ['supply'] : []),
-                ...(in_array('hire', $purchaseTypes, true) ? ['works', 'service', 'consulting'] : []),
+                ...($isPurchase ? ['supply'] : []),
+                ...($isHire ? ['works', 'service', 'consulting'] : []),
             ];
             $legacyCategories = [
-                ...(in_array('purchase', $purchaseTypes, true) ? ['goods'] : []),
-                ...(in_array('hire', $purchaseTypes, true) ? ['construction', 'services', 'consulting'] : []),
+                ...($isPurchase ? ['goods'] : []),
+                ...($isHire ? ['construction', 'services', 'consulting'] : []),
             ];
             $query->where(function (Builder $builder) use ($categories, $legacyCategories): void {
                 $builder->whereIn('procurement_category', $categories)

@@ -58,3 +58,44 @@ test('budget slider continues dragging after results update', async ({
     );
     await page.mouse.up();
 });
+
+test('removing one search filter preserves the other and clearing resets both', async ({
+    page,
+}) => {
+    // Given two active filters selected through the search sidebar.
+    resetDatabase();
+    await page.goto('/procurement');
+    const purchase = page
+        .getByRole('group', { name: 'ซื้อหรือจ้าง' })
+        .getByRole('checkbox', { name: 'ซื้อ', exact: true });
+    await page
+        .getByRole('checkbox', { name: 'มหาวิทยาลัยขอนแก่น' })
+        .click();
+    await expect(page).toHaveURL(
+        (url) =>
+            url.searchParams.get('organization[0]') ===
+            'มหาวิทยาลัยขอนแก่น',
+    );
+    await purchase.click();
+    await expect(page).toHaveURL(
+        (url) => url.searchParams.get('purchase_type[0]') === 'purchase',
+    );
+
+    // When the organization chip is removed, the purchase choice remains.
+    await page
+        .getByRole('button', { name: 'ลบตัวกรอง มหาวิทยาลัยขอนแก่น' })
+        .click();
+    await expect(page).toHaveURL((url) =>
+        url.searchParams.has('purchase_type[0]') &&
+        !url.searchParams.has('organization[0]'),
+    );
+    await expect(purchase).toBeChecked();
+
+    // Then clearing the remaining filter restores the unfiltered results.
+    await page.getByRole('button', { name: 'ล้างทั้งหมด' }).click();
+    await expect(page).toHaveURL((url) =>
+        !url.searchParams.has('purchase_type[0]') &&
+        !url.searchParams.has('organization[0]'),
+    );
+    await expect(page.locator('article')).toHaveCount(3);
+});

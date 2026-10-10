@@ -123,7 +123,7 @@ class SearchController extends Controller
             ['value' => 'invitation', 'label' => 'ประกาศเชิญชวน'],
             ['value' => 'award', 'label' => 'ประกาศผู้ชนะ'],
         ];
-        $taxonomy['tags'] = Announcement::query()->visible()->whereNotNull('tags')
+        $taxonomy['tags'] = (clone $published)->whereNotNull('tags')
             ->get(['tags'])->flatMap(fn (Announcement $announcement): array => $announcement->tags ?? [])
             ->unique()->sort()->values()
             ->map(fn (string $tag): array => ['value' => $tag, 'label' => $tag])->all();

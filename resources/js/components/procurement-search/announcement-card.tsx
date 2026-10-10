@@ -52,10 +52,10 @@ export function AnnouncementCard({
 
     return (
         <article
-            className={`group min-w-0 rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-md ${
+            className={`group min-w-0 rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-md ${
                 announcement.status === 'closed'
-                    ? 'border-border bg-muted/30 opacity-80 hover:opacity-100'
-                    : 'border-border'
+                    ? 'bg-muted/30 opacity-80 hover:opacity-100'
+                    : ''
             }`}
         >
             <div className="flex flex-col gap-4">

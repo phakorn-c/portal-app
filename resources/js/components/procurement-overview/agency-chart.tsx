@@ -17,6 +17,7 @@ export function AgencyChart({
 }) {
     const max = Math.max(0, ...agencies.map((agency) => agency[metric]));
     const isBudget = metric === 'known_budget';
+    const unit = isBudget ? 'ล้านบาท' : 'ประกาศ';
 
     return (
         <Card className="min-w-0 gap-4 py-5">
@@ -61,11 +62,11 @@ export function AgencyChart({
                                         <div className="h-5 min-w-0 flex-1 overflow-hidden rounded-sm bg-muted">
                                             <div
                                                 role="meter"
-                                                aria-label={`${agency.name}: ${label} ${isBudget ? 'ล้านบาท' : 'ประกาศ'}`}
+                                                aria-label={`${agency.name}: ${label} ${unit}`}
                                                 aria-valuemin={0}
                                                 aria-valuemax={max || 1}
                                                 aria-valuenow={value}
-                                                aria-valuetext={`${label} ${isBudget ? 'ล้านบาท' : 'ประกาศ'}`}
+                                                aria-valuetext={`${label} ${unit}`}
                                                 className={`h-full rounded-sm ${isBudget ? 'bg-chart-2' : 'bg-primary dark:bg-blue-400'}`}
                                                 style={{
                                                     width: `${max > 0 ? (value / max) * 100 : 0}%`,

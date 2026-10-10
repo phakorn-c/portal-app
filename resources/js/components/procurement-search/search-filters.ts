@@ -1,6 +1,7 @@
 import type { FormDataConvertible } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
+import { buildActiveFilterChips } from '@/components/procurement-search/active-filter-chips';
 import type { FilterState } from '@/types/procurement';
 
 export type SearchTaxonomy = {
@@ -101,88 +102,26 @@ export function useSearchFilters(
         onSubmit();
     };
 
-    const activeFilters = [
-        ...selectedOrganizations.map((value) => ({
-            label: value,
-            value,
-            onRemove: () => {
-                const next = selectedOrganizations.filter(
-                    (item) => item !== value,
-                );
-                setSelectedOrganizations(next);
-                submitFilters({ ...criteria, organizations: next });
-            },
-        })),
-        ...selectedMethods.map((value) => ({
-            label: taxonomy.methodLabels[value] ?? value,
-            value,
-            onRemove: () => {
-                const next = selectedMethods.filter((item) => item !== value);
-                setSelectedMethods(next);
-                submitFilters({ ...criteria, methods: next });
-            },
-        })),
-        ...selectedCategories.map((value) => ({
-            label: taxonomy.categoryLabels[value] ?? value,
-            value,
-            onRemove: () => {
-                const next = selectedCategories.filter(
-                    (item) => item !== value,
-                );
-                setSelectedCategories(next);
-                submitFilters({ ...criteria, categories: next });
-            },
-        })),
-        ...(
-            [
-                {
-                    values: selectedNoticeTypes,
-                    options: taxonomy.noticeTypes,
-                    key: 'noticeTypes',
-                },
-                {
-                    values: selectedPurchaseTypes,
-                    options: [
-                        { value: 'purchase', label: 'ซื้อ' },
-                        { value: 'hire', label: 'จ้าง' },
-                    ],
-                    key: 'purchaseTypes',
-                },
-                {
-                    values: selectedProvinces,
-                    options: taxonomy.provinces,
-                    key: 'provinces',
-                },
-                { values: selectedTags, options: taxonomy.tags, key: 'tags' },
-            ] as const
-        ).flatMap(({ values, options, key }) =>
-            values.map((value) => ({
-                label:
-                    options.find((option) => option.value === value)?.label ??
-                    value,
-                value: `${key}:${value}`,
-                onRemove: () => {
-                    const next = values.filter((item) => item !== value);
-                    if (key === 'noticeTypes') setSelectedNoticeTypes(next);
-                    if (key === 'purchaseTypes') setSelectedPurchaseTypes(next);
-                    if (key === 'provinces') setSelectedProvinces(next);
-                    if (key === 'tags') setSelectedTags(next);
-                    submitFilters({ ...criteria, [key]: next });
-                },
-            })),
-        ),
-    ];
-
-    if (openProposals) {
-        activeFilters.push({
-            label: 'ยังรับข้อเสนอ',
-            value: 'openProposals',
-            onRemove: () => {
-                setOpenProposals(false);
-                submitFilters({ ...criteria, openProposals: false });
-            },
-        });
-    }
+    const activeFilters = buildActiveFilterChips(criteria, taxonomy, {
+        onRemove: (key, value) => {
+            const next = criteria[key].filter((item) => item !== value);
+            const setters = {
+                organizations: setSelectedOrganizations,
+                methods: setSelectedMethods,
+                categories: setSelectedCategories,
+                noticeTypes: setSelectedNoticeTypes,
+                purchaseTypes: setSelectedPurchaseTypes,
+                provinces: setSelectedProvinces,
+                tags: setSelectedTags,
+            };
+            setters[key](next);
+            submitFilters({ ...criteria, [key]: next });
+        },
+        onOpenProposalsRemove: () => {
+            setOpenProposals(false);
+            submitFilters({ ...criteria, openProposals: false });
+        },
+    });
 
     const hasActiveFilters =
         activeFilters.length > 0 ||
