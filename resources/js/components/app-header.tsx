@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    FileText,
     LayoutGrid,
     Menu,
     Search,
@@ -41,8 +40,7 @@ type Props = {
     breadcrumbs?: BreadcrumbItem[];
 };
 
-const activeItemStyles =
-    'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
+const activeItemStyles = 'bg-accent text-accent-foreground';
 
 export function AppHeader({ breadcrumbs = [] }: Props) {
     const page = usePage<SharedData>();
@@ -51,7 +49,8 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     const getInitials = useInitials();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
     const navItems: NavItem[] = [
-        { title: 'ประกาศจัดซื้อจัดจ้าง', href: '/procurement', icon: FileText },
+        { title: 'ภาพรวม', href: '/overview', icon: LayoutGrid },
+        { title: 'ค้นหาประกาศ', href: '/procurement', icon: Search },
     ];
 
     if (auth?.capabilities?.isAdmin || auth?.capabilities?.isRegistered) {
@@ -126,6 +125,11 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                                 <Link
                                                     key={item.title}
                                                     href={item.href}
+                                                    aria-current={
+                                                        isCurrentUrl(item.href)
+                                                            ? 'page'
+                                                            : undefined
+                                                    }
                                                     className="flex items-center space-x-2 font-medium"
                                                     data-test={
                                                         item['data-test']
@@ -137,6 +141,14 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                                     <span>{item.title}</span>
                                                 </Link>
                                             ))}
+                                            {!user && (
+                                                <Link
+                                                    href={register()}
+                                                    className="font-medium sm:hidden"
+                                                >
+                                                    ลงทะเบียน
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -147,9 +159,9 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                     <Link
                         href={user ? dashboard() : '/procurement'}
                         prefetch
-                        className="flex items-center space-x-2"
+                        className="flex min-w-0 items-center space-x-2"
                     >
-                        <span className="text-xl font-bold">
+                        <span className="truncate text-xl font-bold">
                             {page.props.name}
                         </span>
                     </Link>
@@ -165,6 +177,11 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                     >
                                         <Link
                                             href={item.href}
+                                            aria-current={
+                                                isCurrentUrl(item.href)
+                                                    ? 'page'
+                                                    : undefined
+                                            }
                                             className={cn(
                                                 navigationMenuTriggerStyle(),
                                                 whenCurrentUrl(
@@ -181,7 +198,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                             {item.title}
                                         </Link>
                                         {isCurrentUrl(item.href) && (
-                                            <div className="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white"></div>
+                                            <div className="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-primary"></div>
                                         )}
                                     </NavigationMenuItem>
                                 ))}
@@ -235,7 +252,10 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 <Button variant="ghost" asChild>
                                     <Link href={login()}>เข้าสู่ระบบ</Link>
                                 </Button>
-                                <Button asChild>
+                                <Button
+                                    asChild
+                                    className="hidden sm:inline-flex"
+                                >
                                     <Link href={register()}>ลงทะเบียน</Link>
                                 </Button>
                             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Procurement\Taxonomy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -82,6 +83,7 @@ class Announcement extends Model
     public function scopeVisible(Builder $query): Builder
     {
         return $query->where('publication_status', 'published')
+            ->whereIn('organization', Taxonomy::organizations())
             ->where(function (Builder $builder): void {
                 $builder->whereNull('source_document_key')
                     ->orWhereHas('attachments.extraction', fn (Builder $extraction): Builder => $extraction->where('status', 'approved'));

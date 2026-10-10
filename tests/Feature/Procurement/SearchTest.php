@@ -85,7 +85,7 @@ test('OCR notice location and tag filters include unknown budgets only without p
         'budget' => null,
         'deadline' => null,
         'status' => null,
-        'organization' => 'หน่วยงานที่นำเข้าจาก OCR',
+        'organization' => 'โรงพยาบาลธัญญารักษ์ขอนแก่น',
         'method' => 'ประกวดราคา',
     ]);
     Announcement::factory()->published()->create([
@@ -254,21 +254,21 @@ test('keyword filter returns only matching announcements', function () {
 test('canonical seeded organization method and category filters return the matching published announcement', function () {
     $cases = [
         [
-            'organization' => Taxonomy::organizations()[1],
+            'organization' => Taxonomy::organizations()[0],
             'method' => 'e-bidding',
             'category' => 'services',
             'id' => 1,
             'title' => 'Khon Kaen Smart Traffic Upgrade',
         ],
         [
-            'organization' => Taxonomy::organizations()[0],
+            'organization' => Taxonomy::organizations()[1],
             'method' => 'selective',
             'category' => 'goods',
             'id' => 2,
             'title' => 'Ban Phai School Wi-Fi Expansion',
         ],
         [
-            'organization' => Taxonomy::organizations()[4],
+            'organization' => Taxonomy::organizations()[2],
             'method' => 'specific',
             'category' => 'construction',
             'id' => 3,
@@ -298,7 +298,7 @@ test('canonical seeded organization method and category filters return the match
 
 test('canonical hidden and draft filter combinations return zero public results', function () {
     $response = get(route('procurement.search', [
-        'organization' => Taxonomy::organizations()[3],
+        'organization' => Taxonomy::organizations()[1],
         'method' => 'selective',
         'category' => 'consulting',
     ]));
@@ -306,7 +306,7 @@ test('canonical hidden and draft filter combinations return zero public results'
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
         ->component('procurement/search')
-        ->where('filters.organizations', [Taxonomy::organizations()[3]])
+        ->where('filters.organizations', [Taxonomy::organizations()[1]])
         ->where('filters.methods', ['selective'])
         ->where('filters.categories', ['consulting'])
         ->where('announcements.total', 0)
@@ -359,7 +359,7 @@ test('authenticated verified user search with criteria creates history', functio
     get(route('procurement.search', [
         'category' => 'construction',
         'method' => 'specific',
-        'organization' => 'สำนักงานสาธารณสุขจังหวัด',
+        'organization' => 'โรงพยาบาลธัญญารักษ์ขอนแก่น',
         'budget_min' => 1000,
         'budget_max' => 2000000,
     ]))->assertOk();
@@ -401,4 +401,21 @@ test('search page exposes canonical procurement taxonomy options', function () {
         ->where('taxonomy.methods', Taxonomy::methodOptions())
         ->where('taxonomy.categories', Taxonomy::categoryOptions())
     );
+});
+
+test('foreign published agencies stay out of public search and detail', function () {
+    $foreign = Announcement::factory()->published()->create([
+        'title' => 'ประกาศจากหน่วยงานนอกขอบเขต',
+        'organization' => 'องค์การบริหารส่วนจังหวัด',
+    ]);
+
+    get(route('procurement.search'))->assertInertia(fn (Assert $page) => $page
+        ->where('announcements.total', 3)
+        ->where('taxonomy.organizations', Taxonomy::organizationOptions())
+        ->missing('announcements.data.3'));
+
+    get(route('procurement.search', ['query' => $foreign->title]))
+        ->assertInertia(fn (Assert $page) => $page->where('announcements.total', 0));
+
+    get(route('procurement.show', $foreign))->assertNotFound();
 });

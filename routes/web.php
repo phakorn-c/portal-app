@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ExtractionReviewController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Procurement\OverviewController;
 use App\Http\Controllers\Procurement\PdfController;
 use App\Http\Controllers\Procurement\SearchController;
 use App\Http\Controllers\Procurement\ShowController;
@@ -13,6 +14,8 @@ use App\Http\Controllers\User\SavedSearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [SearchController::class, 'index'])->name('home');
+
+Route::get('overview', [OverviewController::class, 'index'])->name('procurement.overview');
 
 Route::get('dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 

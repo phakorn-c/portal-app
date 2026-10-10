@@ -39,7 +39,7 @@ class DemoAnnouncementSeeder extends Seeder
             [
                 'id' => 2,
                 'title' => 'Ban Phai School Wi-Fi Expansion',
-                'organization' => 'องค์การบริหารส่วนจังหวัด',
+                'organization' => 'มหาวิทยาลัยขอนแก่น',
                 'category' => 'goods',
                 'method' => 'selective',
                 'budget' => '890000.00',
@@ -58,7 +58,7 @@ class DemoAnnouncementSeeder extends Seeder
             [
                 'id' => 3,
                 'title' => 'Nam Phong Clinic Renovation',
-                'organization' => 'สำนักงานสาธารณสุขจังหวัด',
+                'organization' => 'โรงพยาบาลธัญญารักษ์ขอนแก่น',
                 'category' => 'construction',
                 'method' => 'specific',
                 'budget' => '3650000.00',

@@ -105,7 +105,7 @@ class SearchController extends Controller
         $taxonomy = Taxonomy::forInertia();
         $published = Announcement::query()->visible();
 
-        foreach (['organization' => 'organizations', 'method' => 'methods', 'province' => 'provinces'] as $column => $key) {
+        foreach (['method' => 'methods', 'province' => 'provinces'] as $column => $key) {
             $existing = collect($taxonomy[$key] ?? [])->pluck('value');
             $taxonomy[$key] = $existing
                 ->merge((clone $published)->whereNotNull($column)->distinct()->pluck($column))
