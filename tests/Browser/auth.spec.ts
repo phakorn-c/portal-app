@@ -233,6 +233,39 @@ test('registered user sees member navigation and can open saved searches and his
     );
 });
 
+test('dashboard replays saved purchase and open-proposal filters', async ({
+    page,
+}) => {
+    resetDatabase();
+    createUserFixtures();
+    artisan(
+        'tinker',
+        '--execute',
+        `\\App\\Models\\SavedSearch::query()->where('name', 'Playwright Saved Search')->firstOrFail()->update([
+            'criteria' => [
+                ...\\App\\Support\\Procurement\\FilterState::defaults(),
+                'purchaseTypes' => ['purchase'],
+                'openProposals' => true,
+            ],
+        ]);`,
+    );
+
+    await loginAs(page, 'test@example.com', 'password');
+    await page.getByRole('link', { name: 'Playwright Saved Search' }).click();
+
+    await expect(page).toHaveURL(/\/procurement\?/);
+    const params = new URL(page.url()).searchParams;
+    expect(params.get('open_proposals')).toBe('1');
+    await expect(
+        page
+            .getByRole('group', { name: 'ซื้อหรือจ้าง' })
+            .getByRole('checkbox', { name: 'ซื้อ', exact: true }),
+    ).toBeChecked();
+    await expect(
+        page.getByRole('checkbox', { name: 'ยังรับข้อเสนอ' }),
+    ).toBeChecked();
+});
+
 test('registered user can view saved searches and toggle notification settings', async ({
     page,
 }) => {
